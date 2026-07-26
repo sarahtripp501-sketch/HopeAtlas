@@ -89,7 +89,7 @@ body { margin: 0; }
 .disc b{color:var(--ink)}
 .spin{animation:sp 1s linear infinite}@keyframes sp{to{transform:rotate(360deg)}}
 @media (prefers-reduced-motion:reduce){.org *{transition:none!important}}
-.org.dark {
+body.dark .org {
   --bg:#1B1F1D;--surface:#242926;--surface-2:#2C312D;
   --ink:#EDEBE3;--muted:#A9AFA5;--faint:#6E7268;--line:#3A3F3A;
   --primary:#5FA893;--primary-soft:#24413A;
@@ -100,8 +100,8 @@ body { margin: 0; }
   --practical:#7FC29E;--practical-s:#25392E;
   --caregiver:#D99A8E;--caregiver-s:#4A2E29;
 }
-.org.dark .btn { color: #0F1613; }
-.org.dark input, .org.dark select { color: var(--ink); }
+body.dark .org .btn { color: #0F1613; }
+body.dark .org input, body.dark .org select { color: var(--ink); }
 .ogrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px}
 .gcard{background:var(--surface);border:1px solid var(--line);border-radius:13px;padding:14px 15px;display:flex;flex-direction:column;gap:8px}
 .gcard.web{border-style:dashed}
@@ -111,3 +111,11 @@ body { margin: 0; }
 .gdesc{font-size:12.5px;color:var(--muted);flex:1}
 .gbadges{display:flex;flex-wrap:wrap;gap:5px}
 .gfoot{display:flex;align-items:center;justify-content:space-between;margin-top:auto;padding-top:6px;border-top:1px solid var(--line)}
+body.dark { background: #1B1F1D; color: #EDEBE3; }
+body { background: #E9E8E4; }
+body.dark { background: #1B1F1D; color: #EDEBE3; }
+body.reduce-motion * {
+  transition: none !important;
+  animation: none !important;
+  scroll-behavior: auto !important;
+}

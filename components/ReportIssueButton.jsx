@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Flag, X } from "lucide-react";
 import { supabase, getOrCreateSessionId } from "../lib/supabase";
+import { sendReportEmail } from "../app/actions/sendEmail";
 
 const ISSUE_TYPES = [
   "Outdated info",
@@ -17,7 +18,7 @@ export default function ReportIssueButton({ resourceName, resourceUrl }) {
   const [details, setDetails] = useState("");
   const [submitted, setSubmitted] = useState(false);
 
-  async function handleSubmit() {
+ async function handleSubmit() {
     const sessionId = getOrCreateSessionId();
     const { error } = await supabase.from("resource_reports").insert({
       session_id: sessionId,
@@ -31,6 +32,10 @@ export default function ReportIssueButton({ resourceName, resourceUrl }) {
       console.error(error);
       return;
     }
+
+    sendReportEmail({ resourceName, resourceUrl, issueType, details }).catch((err) =>
+      console.error("Email notification failed:", err)
+    );
 
     setSubmitted(true);
     setTimeout(() => {

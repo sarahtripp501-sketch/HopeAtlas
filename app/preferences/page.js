@@ -7,6 +7,15 @@ import { supabase, getOrCreateSessionId } from "../../lib/supabase";
 const THEMES = ["Light", "Dark", "System"];
 const LANGUAGES = ["English"];
 
+function applyTheme(theme) {
+  if (typeof document === "undefined") return;
+  let isDark = theme === "Dark";
+  if (theme === "System" && typeof window !== "undefined" && window.matchMedia) {
+    isDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+  }
+  document.body.classList.toggle("dark", isDark);
+}
+
 export default function PreferencesPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -40,8 +49,34 @@ export default function PreferencesPage() {
       setNotifyUpdates(data.notify_updates !== false);
       setNotifyAppointments(data.notify_appointments !== false);
       setNotifyNewMatches(data.notify_new_matches !== false);
+     applyTheme(data.theme || "Light");
+      applyTextSize(!!data.large_text);
+      if (typeof document !== "undefined") {
+        document.body.classList.toggle("reduce-motion", !!data.reduce_motion);
+      }
     }
     setLoading(false);
+  }
+
+  function applyTextSize(large) {
+    if (typeof document === "undefined") return;
+    document.body.style.zoom = large ? "115%" : "100%";
+  }
+
+  function handleThemeChange(value) {
+    setTheme(value);
+    applyTheme(value);
+  }
+
+  function handleLargeTextChange(value) {
+    setLargeText(value);
+    applyTextSize(value);
+  }
+  function handleReduceMotionChange(value) {
+    setReduceMotion(value);
+    if (typeof document !== "undefined") {
+      document.body.classList.toggle("reduce-motion", value);
+    }
   }
 
   async function handleSave() {
@@ -81,14 +116,14 @@ export default function PreferencesPage() {
           <span style={styles.sectionLabel}>Appearance</span>
         </div>
         <div style={styles.card}>
-          <select style={styles.select} value={theme} onChange={(e) => setTheme(e.target.value)}>
+          <select style={styles.select} value={theme} onChange={(e) => handleThemeChange(e.target.value)}>
             {THEMES.map((t) => (
               <option key={t} value={t}>
                 {t}
               </option>
             ))}
           </select>
-          <p style={styles.note}>Theme support is coming soon — this saves your preference for when it's ready.</p>
+          <p style={styles.note}>Applies right away. Click Save below to keep it for next time you visit.</p>
         </div>
       </div>
 
@@ -116,11 +151,11 @@ export default function PreferencesPage() {
         </div>
         <div style={styles.card}>
           <label style={styles.toggleRow}>
-            <input type="checkbox" checked={largeText} onChange={(e) => setLargeText(e.target.checked)} />
+            <input type="checkbox" checked={largeText} onChange={(e) => handleLargeTextChange(e.target.checked)} />
             Larger text
           </label>
           <label style={styles.toggleRow}>
-            <input type="checkbox" checked={reduceMotion} onChange={(e) => setReduceMotion(e.target.checked)} />
+            <input type="checkbox" checked={reduceMotion} onChange={(e) => handleReduceMotionChange(e.target.checked)} />
             Reduce motion
           </label>
         </div>

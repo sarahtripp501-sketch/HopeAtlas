@@ -6,6 +6,7 @@ import {
   ShieldAlert, ClipboardList, Calendar, Pill, StickyNote, FileText, MessageSquareHeart,
 } from "lucide-react";
 import { supabase, getOrCreateSessionId } from "../../lib/supabase";
+import { sendCareUpdateEmails } from "../actions/sendCareUpdateEmail";
 
 const TEMPLATES = [
   { label: "😊 Feeling Better", text: "Feeling better today, thank you for the support." },
@@ -269,6 +270,23 @@ export default function CareCirclePage() {
       category: category || null,
     });
     if (error) return console.error(error);
+
+    // Email everyone in the Care Circle who has opted into updates
+    const now = new Date();
+    const recipients = members
+      .filter(
+        (m) =>
+          m.view_updates &&
+          m.email &&
+          !m.revoked &&
+          (!m.expires_at || new Date(m.expires_at) >= now)
+      )
+      .map((m) => ({ name: m.name, email: m.email }));
+
+    sendCareUpdateEmails({ recipients, message: text, category }).catch((err) =>
+      console.error("Update email notification failed:", err)
+    );
+
     setUpdateText("");
     setUpdateCategory("");
     await loadAll();

@@ -5,7 +5,8 @@ import { User, Loader2 } from "lucide-react";
 import { getOrCreateSessionId, getProfile, saveProfile } from "../../lib/supabase";
 
 const FIELDS = [
- { key: "name", label: "Name", placeholder: "e.g. Sarah" },
+  { key: "name", label: "Name", placeholder: "e.g. Sarah" },
+  { key: "email", label: "Email", placeholder: "e.g. sarah@email.com" },
   { key: "diagnosis", label: "Diagnosis", placeholder: "e.g. Breast cancer" },
   { key: "stage", label: "Stage", placeholder: "e.g. Stage II" },
   { key: "grade", label: "Grade", placeholder: "e.g. Grade 2" },
@@ -18,7 +19,6 @@ const FIELDS = [
   { key: "current_treatment", label: "Current Treatment", placeholder: "e.g. Chemotherapy" },
   { key: "past_treatment", label: "Past Treatment", placeholder: "e.g. Surgery, radiation" },
 ];
-
 export default function ProfilePage() {
   const [sessionId, setSessionId] = useState(null);
   const [form, setForm] = useState({});
