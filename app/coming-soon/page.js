@@ -1,13 +1,12 @@
 "use client";
-
+import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { Sparkles } from "lucide-react";
 
-export default function ComingSoonPage() {
+function ComingSoonContent() {
   const params = useSearchParams();
   const title = params.get("title") || "This feature";
   const note = params.get("note") || "";
-
   return (
     <div style={{ maxWidth: "500px", margin: "0 auto", padding: "60px 20px", textAlign: "center", fontFamily: "'Public Sans',sans-serif" }}>
       <div style={{ width: "56px", height: "56px", borderRadius: "16px", background: "#F5F2EA", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 18px", color: "#2C5F55" }}>
@@ -21,5 +20,13 @@ export default function ComingSoonPage() {
         ← Back to More
       </a>
     </div>
+  );
+}
+
+export default function ComingSoonPage() {
+  return (
+    <Suspense fallback={null}>
+      <ComingSoonContent />
+    </Suspense>
   );
 }
