@@ -14,14 +14,49 @@ const ACCOUNT_TYPES = [
 
 export default function ConnectedAccountsPage() {
   const [connected, setConnected] = useState({});
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // For now this is just a local, non-persisted placeholder toggle —
-    // no real account connection happens yet.
+    loadInterest();
   }, []);
 
-  function toggleConnected(type) {
-    setConnected((prev) => ({ ...prev, [type]: !prev[type] }));
+  async function loadInterest() {
+    const sessionId = getOrCreateSessionId();
+    const { data, error } = await supabase
+      .from("connected_account_interest")
+      .select("*")
+      .eq("session_id", sessionId);
+
+    if (!error && data) {
+      const map = {};
+      data.forEach((row) => {
+        map[row.account_type] = row.interested;
+      });
+      setConnected(map);
+    }
+    setLoading(false);
+  }
+
+  async function toggleConnected(type) {
+    const sessionId = getOrCreateSessionId();
+    const newValue = !connected[type];
+
+    setConnected((prev) => ({ ...prev, [type]: newValue }));
+
+    const { error } = await supabase.from("connected_account_interest").upsert(
+      {
+        session_id: sessionId,
+        account_type: type,
+        interested: newValue,
+      },
+      { onConflict: "session_id,account_type" }
+    );
+
+    if (error) {
+      console.error(error);
+      // revert on failure
+      setConnected((prev) => ({ ...prev, [type]: !newValue }));
+    }
   }
 
   return (
@@ -32,32 +67,36 @@ export default function ConnectedAccountsPage() {
         yet — for now, you can mark which accounts you use so we know what to prioritize connecting.
       </p>
 
-      <div style={styles.list}>
-        {ACCOUNT_TYPES.map((type) => (
-          <div key={type} style={styles.card}>
-            <span style={styles.cardTitle}>{type}</span>
-            <button
-              style={{
-                ...styles.toggleButton,
-                ...(connected[type] ? styles.toggleButtonOn : {}),
-              }}
-              onClick={() => toggleConnected(type)}
-            >
-              {connected[type] ? (
-                <>
-                  <Check size={14} style={{ marginRight: "5px" }} />
-                  Marked
-                </>
-              ) : (
-                <>
-                  <Plus size={14} style={{ marginRight: "5px" }} />
-                  I use this
-                </>
-              )}
-            </button>
-          </div>
-        ))}
-      </div>
+      {loading ? (
+        <p style={styles.disclaimer}>Loading...</p>
+      ) : (
+        <div style={styles.list}>
+          {ACCOUNT_TYPES.map((type) => (
+            <div key={type} style={styles.card}>
+              <span style={styles.cardTitle}>{type}</span>
+              <button
+                style={{
+                  ...styles.toggleButton,
+                  ...(connected[type] ? styles.toggleButtonOn : {}),
+                }}
+                onClick={() => toggleConnected(type)}
+              >
+                {connected[type] ? (
+                  <>
+                    <Check size={14} style={{ marginRight: "5px" }} />
+                    Marked
+                  </>
+                ) : (
+                  <>
+                    <Plus size={14} style={{ marginRight: "5px" }} />
+                    I use this
+                  </>
+                )}
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
 
       <p style={styles.disclaimer}>
         No data is actually synced from these accounts right now — this is just to help gauge
