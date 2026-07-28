@@ -347,7 +347,7 @@ export default function HomeDashboard() {
         <EmptyCard
           icon={<Star size={16} />}
           title="No applications in progress"
-          href="/coming-soon?title=Application%20Tracker"
+          href="/application-tracker"
         />
 
         <a
