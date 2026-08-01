@@ -1,10 +1,5 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-);
+import { supabaseAdmin } from "../../../lib/supabaseAdmin";
 
 export async function POST(req) {
   try {
@@ -19,7 +14,7 @@ export async function POST(req) {
       return NextResponse.json({ error: "Please fill in every field and pick at least one category and one cancer type." }, { status: 400 });
     }
 
-    const { error } = await supabase.from("custom_orgs").insert({ name, url, description: desc, cats, types });
+    const { error } = await supabaseAdmin.from("custom_orgs").insert({ name, url, description: desc, cats, types });
 
     if (error) {
       console.error("Supabase insert error:", error);

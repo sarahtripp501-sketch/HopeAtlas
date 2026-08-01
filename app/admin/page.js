@@ -1,59 +1,131 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Star, MessageSquare, Lightbulb, Flag, Lock, Trash2 } from "lucide-react";
-import { supabase } from "../../lib/supabase";
 
 export default function AdminPage() {
   const [unlocked, setUnlocked] = useState(false);
   const [passcodeInput, setPasscodeInput] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [checking, setChecking] = useState(false);
 
   const [tab, setTab] = useState("feedback");
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   const [ratings, setRatings] = useState([]);
   const [feedback, setFeedback] = useState([]);
   const [featureSuggestions, setFeatureSuggestions] = useState([]);
   const [reports, setReports] = useState([]);
+  const [orgSuggestions, setOrgSuggestions] = useState([]);
 
-  useEffect(() => {
-    if (unlocked) loadAll();
-  }, [unlocked]);
-
-  function handleUnlock() {
-    const correctPasscode = process.env.NEXT_PUBLIC_ADMIN_PASSCODE;
-    if (passcodeInput === correctPasscode) {
-      setUnlocked(true);
-      setError("");
-    } else {
-      setError("Incorrect passcode.");
+  async function loadSuggestions(pw) {
+    try {
+      const res = await fetch("/api/admin-suggestions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: pw }),
+      });
+      const data = await res.json();
+      if (res.ok) setOrgSuggestions(data.items || []);
+    } catch (err) {
+      console.error(err);
     }
+  }
+
+  async function handleDeleteSuggestion(id) {
+    try {
+      await fetch("/api/admin-delete-suggestion", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password, id }),
+      });
+      await loadSuggestions(password);
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  async function handleUnlock() {
+    setChecking(true);
+    setError("");
+    try {
+      const res = await fetch("/api/admin-load-dashboard", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: passcodeInput }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error || "Incorrect passcode.");
+        setChecking(false);
+        return;
+      }
+
+      const allFeedback = data.feedback_submissions || [];
+      setRatings(allFeedback.filter((f) => f.type === "rating"));
+      setFeedback(allFeedback.filter((f) => f.type === "feedback"));
+      setFeatureSuggestions(allFeedback.filter((f) => f.type === "feature_suggestion"));
+      setReports(data.resource_reports || []);
+
+      setPassword(passcodeInput);
+      await loadSuggestions(passcodeInput);
+      setUnlocked(true);
+    } catch (err) {
+      console.error(err);
+      setError("Something went wrong. Try again.");
+    }
+    setChecking(false);
   }
 
   async function loadAll() {
     setLoading(true);
-    const [feedbackRes, reportsRes] = await Promise.all([
-      supabase.from("feedback_submissions").select("*").order("created_at", { ascending: false }),
-      supabase.from("resource_reports").select("*").order("created_at", { ascending: false }),
-    ]);
-
-    const allFeedback = feedbackRes.data || [];
-    setRatings(allFeedback.filter((f) => f.type === "rating"));
-    setFeedback(allFeedback.filter((f) => f.type === "feedback"));
-    setFeatureSuggestions(allFeedback.filter((f) => f.type === "feature_suggestion"));
-    setReports(reportsRes.data || []);
+    try {
+      const res = await fetch("/api/admin-load-dashboard", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        const allFeedback = data.feedback_submissions || [];
+        setRatings(allFeedback.filter((f) => f.type === "rating"));
+        setFeedback(allFeedback.filter((f) => f.type === "feedback"));
+        setFeatureSuggestions(allFeedback.filter((f) => f.type === "feature_suggestion"));
+        setReports(data.resource_reports || []);
+      }
+      await loadSuggestions(password);
+    } catch (err) {
+      console.error(err);
+    }
     setLoading(false);
   }
 
   async function handleDeleteFeedback(id) {
-    await supabase.from("feedback_submissions").delete().eq("id", id);
-    await loadAll();
+    try {
+      await fetch("/api/admin-delete-feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password, id }),
+      });
+      await loadAll();
+    } catch (err) {
+      console.error(err);
+    }
   }
 
   async function handleDeleteReport(id) {
-    await supabase.from("resource_reports").delete().eq("id", id);
-    await loadAll();
+    try {
+      await fetch("/api/admin-delete-report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password, id }),
+      });
+      await loadAll();
+    } catch (err) {
+      console.error(err);
+    }
   }
 
   if (!unlocked) {
@@ -72,8 +144,8 @@ export default function AdminPage() {
               if (e.key === "Enter") handleUnlock();
             }}
           />
-          <button style={styles.saveButton} onClick={handleUnlock}>
-            Unlock
+          <button style={styles.saveButton} onClick={handleUnlock} disabled={checking}>
+            {checking ? "Checking…" : "Unlock"}
           </button>
           {error && <p style={styles.errorText}>{error}</p>}
         </div>
@@ -95,6 +167,7 @@ export default function AdminPage() {
           ["feedback", `Ratings & Feedback`],
           ["features", `Feature Suggestions (${featureSuggestions.length})`],
           ["reports", `Resource Reports (${reports.length})`],
+          ["orgs", `Org Suggestions (${orgSuggestions.length})`],
         ].map(([key, label]) => (
           <button
             key={key}
@@ -206,6 +279,33 @@ export default function AdminPage() {
                   <div style={styles.cardMeta}>{new Date(r.created_at).toLocaleString()}</div>
                 </div>
                 <button style={styles.iconButton} onClick={() => handleDeleteReport(r.id)}>
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {!loading && tab === "orgs" && (
+        <div>
+          <div style={styles.sectionHeader}>
+            <Lightbulb size={16} style={{ marginRight: "8px" }} />
+            <span style={styles.sectionLabel}>Suggested organizations</span>
+          </div>
+          {orgSuggestions.length === 0 && <p style={styles.empty}>No suggestions yet.</p>}
+          <div style={styles.list}>
+            {orgSuggestions.map((s) => (
+              <div key={s.id} style={styles.card}>
+                <div style={{ flex: 1 }}>
+                  <div style={styles.cardTitle}>{s.name}</div>
+                  <a href={s.url} target="_blank" rel="noopener noreferrer" style={styles.cardLink}>
+                    {s.url}
+                  </a>
+                  {s.note && <div style={styles.cardText}>{s.note}</div>}
+                  <div style={styles.cardMeta}>{new Date(s.created_at).toLocaleString()}</div>
+                </div>
+                <button style={styles.iconButton} onClick={() => handleDeleteSuggestion(s.id)}>
                   <Trash2 size={14} />
                 </button>
               </div>
