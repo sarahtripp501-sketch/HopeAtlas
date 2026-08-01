@@ -3,6 +3,10 @@
     {
       "path": "/api/appointment-reminders",
       "schedule": "0 13 * * *"
+    },
+    {
+      "path": "/api/alert-digest",
+      "schedule": "0 14 * * *"
     }
   ]
 }
