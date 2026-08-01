@@ -16,7 +16,7 @@ export default function SavedPage() {
   }, []);
 
   async function loadAll() {
-    const sessionId = getOrCreateSessionId();
+    const sessionId = await getOrCreateSessionId();
     const [orgsRes, trialsRes, grantsRes] = await Promise.all([
       supabase.from("saved_orgs").select("*").eq("session_id", sessionId),
       supabase.from("saved_trials").select("*").eq("session_id", sessionId),
@@ -30,19 +30,19 @@ export default function SavedPage() {
   }
 
   async function handleRemoveOrg(url) {
-    const sessionId = getOrCreateSessionId();
+    const sessionId = await getOrCreateSessionId();
     await unsaveOrg(sessionId, url);
     setOrgs((prev) => prev.filter((o) => o.url !== url));
   }
 
   async function handleRemoveTrial(id) {
-    const sessionId = getOrCreateSessionId();
+    const sessionId = await getOrCreateSessionId();
     await supabase.from("saved_trials").delete().eq("id", id).eq("session_id", sessionId);
     setTrials((prev) => prev.filter((t) => t.id !== id));
   }
 
   async function handleRemoveGrant(id) {
-    const sessionId = getOrCreateSessionId();
+    const sessionId = await getOrCreateSessionId();
     await supabase.from("saved_grants").delete().eq("id", id).eq("session_id", sessionId);
     setGrants((prev) => prev.filter((g) => g.id !== id));
   }

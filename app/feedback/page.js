@@ -15,7 +15,7 @@ export default function FeedbackPage() {
   const [featureSubmitted, setFeatureSubmitted] = useState(false);
 
   async function submitEntry(type, extra = {}) {
-    const sessionId = getOrCreateSessionId();
+    const sessionId = await getOrCreateSessionId();
     const { error } = await supabase.from("feedback_submissions").insert({
       session_id: sessionId,
       type,

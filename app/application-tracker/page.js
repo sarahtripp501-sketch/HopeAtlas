@@ -23,7 +23,7 @@ export default function ApplicationTrackerPage() {
   }, []);
 
   async function loadApplications() {
-    const sessionId = getOrCreateSessionId();
+    const sessionId = await getOrCreateSessionId();
     const { data, error } = await supabase
       .from("applications")
       .select("*")
@@ -72,7 +72,7 @@ export default function ApplicationTrackerPage() {
 
   async function handleSave() {
     if (!name) return;
-    const sessionId = getOrCreateSessionId();
+    const sessionId = await getOrCreateSessionId();
 
     if (editingId) {
       const existing = applications.find((a) => a.id === editingId);
@@ -105,7 +105,7 @@ export default function ApplicationTrackerPage() {
     const confirmed = window.confirm("Delete this application? This can't be undone.");
     if (!confirmed) return;
 
-    const sessionId = getOrCreateSessionId();
+    const sessionId = await getOrCreateSessionId();
     const { error } = await supabase
       .from("applications")
       .delete()
@@ -117,7 +117,7 @@ export default function ApplicationTrackerPage() {
   }
 
   async function toggleChecklistItem(app, itemId) {
-    const sessionId = getOrCreateSessionId();
+    const sessionId = await getOrCreateSessionId();
     const updatedChecklist = (app.checklist || []).map((c) =>
       c.id === itemId ? { ...c, done: !c.done } : c
     );

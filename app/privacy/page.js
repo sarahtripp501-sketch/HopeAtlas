@@ -38,7 +38,7 @@ export default function PrivacyPage() {
 
   async function handleExport() {
     setExporting(true);
-    const sessionId = getOrCreateSessionId();
+    const sessionId = await getOrCreateSessionId();
     const result = {};
 
     for (const table of ALL_TABLES) {
@@ -64,7 +64,7 @@ export default function PrivacyPage() {
   async function handleDelete() {
     if (confirmText !== "DELETE") return;
     setDeleting(true);
-    const sessionId = getOrCreateSessionId();
+    const sessionId = await getOrCreateSessionId();
 
     for (const table of ALL_TABLES) {
       try {
@@ -74,7 +74,10 @@ export default function PrivacyPage() {
       }
     }
 
-    localStorage.removeItem("org-directory-session-id");
+    // Sign out of the anonymous auth session too, so the next visit gets a
+    // genuinely fresh identity instead of reusing the same (now-empty) one.
+    await supabase.auth.signOut();
+
     setDeleting(false);
     window.location.href = "/";
   }

@@ -37,7 +37,7 @@ export default function DocumentsPage() {
   }, []);
 
   async function loadDocuments() {
-    const sessionId = getOrCreateSessionId();
+    const sessionId = await getOrCreateSessionId();
     const { data, error } = await supabase
       .from("documents")
       .select("*")
@@ -79,7 +79,7 @@ export default function DocumentsPage() {
     setUploading(true);
 
     try {
-      const sessionId = getOrCreateSessionId();
+      const sessionId = await getOrCreateSessionId();
       const filePath = `${sessionId}/${Date.now()}_${file.name}`;
 
       const { error: uploadError } = await supabase.storage
@@ -168,7 +168,7 @@ export default function DocumentsPage() {
   }
 
   async function handleConfirmEvents() {
-    const sessionId = getOrCreateSessionId();
+    const sessionId = await getOrCreateSessionId();
     const toSave = extractedEvents.filter((e) => e.include && e.date && e.title);
 
     if (toSave.length > 0) {
@@ -200,7 +200,7 @@ export default function DocumentsPage() {
 
     await supabase.storage.from("documents").remove([doc.file_path]);
 
-    const sessionId = getOrCreateSessionId();
+    const sessionId = await getOrCreateSessionId();
     const { error } = await supabase
       .from("documents")
       .delete()
@@ -252,7 +252,7 @@ export default function DocumentsPage() {
     const data = await res.json();
     const explanation = data.explanation || "";
 
-    const sessionId = getOrCreateSessionId();
+    const sessionId = await getOrCreateSessionId();
     const { error: updateError } = await supabase
       .from("documents")
       .update({ explanation })

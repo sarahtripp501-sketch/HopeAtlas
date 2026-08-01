@@ -21,7 +21,7 @@ export default function TreatmentsPage() {
   }, []);
 
   async function loadTreatments() {
-    const sessionId = getOrCreateSessionId();
+    const sessionId = await getOrCreateSessionId();
     const { data, error } = await supabase
       .from("treatments")
       .select("*")
@@ -54,7 +54,7 @@ export default function TreatmentsPage() {
 
   async function handleSave() {
     if (!name) return;
-    const sessionId = getOrCreateSessionId();
+    const sessionId = await getOrCreateSessionId();
 
     if (editingId) {
       const { error } = await supabase
@@ -90,7 +90,7 @@ export default function TreatmentsPage() {
     const confirmed = window.confirm("Delete this treatment? This can't be undone.");
     if (!confirmed) return;
 
-    const sessionId = getOrCreateSessionId();
+    const sessionId = await getOrCreateSessionId();
     const { error } = await supabase
       .from("treatments")
       .delete()
@@ -217,7 +217,7 @@ function TreatmentDetail({ treatment, onBack }) {
   async function loadInfo() {
     setInfoLoading(true);
     try {
-      const sessionId = getOrCreateSessionId();
+      const sessionId = await getOrCreateSessionId();
       const profile = await getProfile(sessionId).catch(() => null);
 
       const res = await fetch("/api/treatment-info", {

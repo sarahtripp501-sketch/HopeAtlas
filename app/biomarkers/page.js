@@ -31,7 +31,7 @@ export default function BiomarkersPage() {
   }, []);
 
   async function loadAll() {
-    const sessionId = getOrCreateSessionId();
+    const sessionId = await getOrCreateSessionId();
 
     const [bRes, tRes] = await Promise.all([
       supabase.from("biomarkers").select("*").eq("session_id", sessionId).order("id", { ascending: true }),
@@ -61,7 +61,7 @@ export default function BiomarkersPage() {
 
   async function handleSave() {
     if (!name) return;
-    const sessionId = getOrCreateSessionId();
+    const sessionId = await getOrCreateSessionId();
 
     if (editingId) {
       const { error } = await supabase
@@ -89,7 +89,7 @@ export default function BiomarkersPage() {
     const confirmed = window.confirm("Delete this biomarker? This can't be undone.");
     if (!confirmed) return;
 
-    const sessionId = getOrCreateSessionId();
+    const sessionId = await getOrCreateSessionId();
     const { error } = await supabase
       .from("biomarkers")
       .delete()
@@ -103,7 +103,7 @@ export default function BiomarkersPage() {
 
   async function handleSaveTest() {
     if (!testDate || !testName) return;
-    const sessionId = getOrCreateSessionId();
+    const sessionId = await getOrCreateSessionId();
 
     const { error } = await supabase.from("biomarker_tests").insert({
       session_id: sessionId,
@@ -125,7 +125,7 @@ export default function BiomarkersPage() {
     const confirmed = window.confirm("Delete this test entry? This can't be undone.");
     if (!confirmed) return;
 
-    const sessionId = getOrCreateSessionId();
+    const sessionId = await getOrCreateSessionId();
     const { error } = await supabase
       .from("biomarker_tests")
       .delete()
@@ -346,7 +346,7 @@ function BiomarkerDetail({ biomarker, onBack }) {
   async function loadInfo() {
     setInfoLoading(true);
     try {
-      const sessionId = getOrCreateSessionId();
+      const sessionId = await getOrCreateSessionId();
       const profile = await getProfile(sessionId).catch(() => null);
 
       const res = await fetch("/api/biomarker-info", {

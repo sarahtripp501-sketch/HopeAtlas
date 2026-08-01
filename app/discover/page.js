@@ -1,19 +1,21 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Activity, Pill, Dna, Clock, FileText, ChevronRight, FlaskConical, HandCoins } from "lucide-react";
+import { Activity, Pill, Dna, Clock, FileText, FlaskConical, HandCoins } from "lucide-react";
 import { getOrCreateSessionId, getProfile } from "../../lib/supabase";
 
 export default function MyJourneyPage() {
   const [hasProfile, setHasProfile] = useState(null);
 
   useEffect(() => {
-    const sessionId = getOrCreateSessionId();
-    getProfile(sessionId)
-      .then((p) => {
-        setHasProfile(!!(p && (p.diagnosis || p.name)));
-      })
-      .catch(() => setHasProfile(false));
+    (async () => {
+      const sessionId = await getOrCreateSessionId();
+      getProfile(sessionId)
+        .then((p) => {
+          setHasProfile(!!(p && (p.diagnosis || p.name)));
+        })
+        .catch(() => setHasProfile(false));
+    })();
   }, []);
 
   const diagnosisHref = hasProfile === false ? "/profile" : "/diagnosis";
@@ -22,65 +24,102 @@ export default function MyJourneyPage() {
     { title: "My Diagnosis", href: diagnosisHref, icon: Activity, desc: "Your diagnosis history and current status" },
     { title: "Treatments", href: "/treatments", icon: Pill, desc: "Track treatments and learn how they work" },
     { title: "Biomarkers & Genetic Testing", href: "/biomarkers", icon: Dna, desc: "Your genetic markers and what they mean" },
-   { title: "Clinical Trials", href: "/clinical-trials", icon: FlaskConical, desc: "Trial matches, saved trials, and application tracking" }, 
+    { title: "Clinical Trials", href: "/clinical-trials", icon: FlaskConical, desc: "Trial matches, saved trials, and application tracking" },
     { title: "Financial Assistance", href: "/financial-assistance", icon: HandCoins, desc: "Grants, medication assistance, and application tracking" },
-   { title: "Timeline", href: "/timeline", icon: Clock, desc: "Your full journey in one place" },
+    { title: "Timeline", href: "/timeline", icon: Clock, desc: "Your full journey in one place" },
     { title: "Medical Documents", href: "/documents", icon: FileText, desc: "Your secure health document vault" },
   ];
 
   return (
     <div style={styles.page}>
-      <h1 style={styles.heading}>My Journey</h1>
-      <p style={styles.subheading}>Everything about your diagnosis, treatment, and health history.</p>
+      <div style={styles.wrap}>
+        <span style={styles.eyebrow}>Contents</span>
+        <h1 style={styles.heading}>My Journey</h1>
+        <p style={styles.subheading}>
+          Everything about your diagnosis, treatment, and health history.
+        </p>
 
-      <div style={styles.list}>
-        {ITEMS.map((item) => {
-          const Icon = item.icon;
-          return (
-            <a key={item.title} href={item.href} style={styles.card}>
-              <div style={styles.iconBox}>
-                <Icon size={18} />
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={styles.cardTitle}>{item.title}</div>
-                <div style={styles.cardDesc}>{item.desc}</div>
-              </div>
-              <ChevronRight size={16} color="#B9B5A8" />
-            </a>
-          );
-        })}
+        <div style={styles.list}>
+          {ITEMS.map((item, i) => {
+            const Icon = item.icon;
+            return (
+              <a key={item.title} href={item.href} style={styles.row}>
+                <span style={styles.index}>{String(i + 1).padStart(2, "0")}</span>
+                <Icon size={17} color="#2B4339" style={{ flexShrink: 0 }} />
+                <div style={{ flex: 1 }}>
+                  <div style={styles.rowTitle}>{item.title}</div>
+                  <div style={styles.rowDesc}>{item.desc}</div>
+                </div>
+              </a>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
 }
 
 const styles = {
-  page: { padding: "16px", paddingBottom: "80px", maxWidth: "600px", margin: "0 auto" },
-  heading: { fontSize: "20px", fontWeight: 700, marginBottom: "4px" },
-  subheading: { fontSize: "13px", color: "#6E726A", marginBottom: "20px" },
-  list: { display: "flex", flexDirection: "column", gap: "10px" },
-  card: {
+  page: {
+    minHeight: "100vh",
+    background: "#FAF6F0",
+    paddingBottom: "80px",
+  },
+  wrap: {
+    maxWidth: "600px",
+    margin: "0 auto",
+    padding: "24px 20px 0",
+    fontFamily: "var(--font-work-sans), -apple-system, sans-serif",
+  },
+  eyebrow: {
+    fontFamily: "var(--font-plex-mono), monospace",
+    fontSize: "11px",
+    letterSpacing: "0.08em",
+    textTransform: "uppercase",
+    color: "#7C9885",
+  },
+  heading: {
+    fontFamily: "var(--font-fraunces), serif",
+    fontWeight: 500,
+    fontSize: "26px",
+    color: "#2A2622",
+    margin: "6px 0 6px",
+  },
+  subheading: {
+    fontSize: "14px",
+    color: "#5f6d63",
+    marginBottom: "28px",
+  },
+  list: {
+    display: "flex",
+    flexDirection: "column",
+    borderTop: "1px solid #E5DFD2",
+  },
+  row: {
     display: "flex",
     alignItems: "center",
-    gap: "12px",
-    background: "#FCFBF8",
-    border: "1px solid #E1DDD2",
-    borderRadius: "13px",
-    padding: "14px",
+    gap: "14px",
+    padding: "18px 4px",
+    borderBottom: "1px solid #E5DFD2",
     textDecoration: "none",
     color: "inherit",
   },
-  iconBox: {
-    width: "36px",
-    height: "36px",
-    borderRadius: "9px",
-    background: "#F5F2EA",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    color: "#2C5F55",
+  index: {
+    fontFamily: "var(--font-fraunces), serif",
+    fontStyle: "italic",
+    fontSize: "14px",
+    color: "#C9A227",
+    width: "20px",
     flexShrink: 0,
   },
-  cardTitle: { fontSize: "14px", fontWeight: 600, color: "#262E2A" },
-  cardDesc: { fontSize: "12.5px", color: "#6E726A", marginTop: "2px" },
+  rowTitle: {
+    fontSize: "15px",
+    fontWeight: 500,
+    color: "#2A2622",
+  },
+  rowDesc: {
+    fontSize: "12.5px",
+    color: "#8a8478",
+    marginTop: "2px",
+  },
 };

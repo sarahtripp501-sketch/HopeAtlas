@@ -22,7 +22,7 @@ export default function MedicationsPage() {
   }, []);
 
   async function loadMedications() {
-    const sessionId = getOrCreateSessionId();
+    const sessionId = await getOrCreateSessionId();
     const { data, error } = await supabase
       .from("medications")
       .select("*")
@@ -55,7 +55,7 @@ export default function MedicationsPage() {
 
   async function handleSave() {
     if (!name) return;
-    const sessionId = getOrCreateSessionId();
+    const sessionId = await getOrCreateSessionId();
 
     if (editingId) {
       const { error } = await supabase
@@ -85,7 +85,7 @@ export default function MedicationsPage() {
     const confirmed = window.confirm("Delete this medication? This can't be undone.");
     if (!confirmed) return;
 
-    const sessionId = getOrCreateSessionId();
+    const sessionId = await getOrCreateSessionId();
     const { error } = await supabase
       .from("medications")
       .delete()

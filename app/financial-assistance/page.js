@@ -37,7 +37,7 @@ export default function FinancialAssistancePage() {
   }, []);
 
   async function loadAll() {
-    const sessionId = getOrCreateSessionId();
+    const sessionId = await getOrCreateSessionId();
     const [profileData, savedRes, appRes] = await Promise.all([
       getProfile(sessionId).catch(() => null),
       supabase.from("saved_grants").select("*").eq("session_id", sessionId).order("id"),
@@ -102,7 +102,7 @@ export default function FinancialAssistancePage() {
   }
 
   async function toggleSave(item) {
-    const sessionId = getOrCreateSessionId();
+    const sessionId = await getOrCreateSessionId();
     if (isSaved(item)) {
       const match = saved.find((s) => s.url === item.url);
       await supabase.from("saved_grants").delete().eq("id", match.id).eq("session_id", sessionId);
@@ -117,7 +117,7 @@ export default function FinancialAssistancePage() {
   }
 
   async function handleRemoveSaved(id) {
-    const sessionId = getOrCreateSessionId();
+    const sessionId = await getOrCreateSessionId();
     await supabase.from("saved_grants").delete().eq("id", id).eq("session_id", sessionId);
     setSaved((prev) => prev.filter((s) => s.id !== id));
   }
@@ -131,7 +131,7 @@ export default function FinancialAssistancePage() {
 
   async function handleSaveApp() {
     if (!appProgramName) return;
-    const sessionId = getOrCreateSessionId();
+    const sessionId = await getOrCreateSessionId();
     const { data, error } = await supabase
       .from("grant_applications")
       .insert({ session_id: sessionId, program_name: appProgramName, status: appStatus, notes: appNotes })
@@ -143,7 +143,7 @@ export default function FinancialAssistancePage() {
   }
 
   async function handleUpdateAppStatus(id, status) {
-    const sessionId = getOrCreateSessionId();
+    const sessionId = await getOrCreateSessionId();
     await supabase.from("grant_applications").update({ status }).eq("id", id).eq("session_id", sessionId);
     setApplications((prev) => prev.map((a) => (a.id === id ? { ...a, status } : a)));
   }
@@ -151,7 +151,7 @@ export default function FinancialAssistancePage() {
   async function handleDeleteApp(id) {
     const confirmed = window.confirm("Remove this application?");
     if (!confirmed) return;
-    const sessionId = getOrCreateSessionId();
+    const sessionId = await getOrCreateSessionId();
     await supabase.from("grant_applications").delete().eq("id", id).eq("session_id", sessionId);
     setApplications((prev) => prev.filter((a) => a.id !== id));
   }

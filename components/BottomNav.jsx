@@ -20,9 +20,20 @@ export default function BottomNav() {
         const active = pathname === tab.href;
         const Icon = tab.icon;
         return (
-          <a key={tab.href} href={tab.href} style={{ ...styles.tab, color: active ? "#111" : "#9A9A90" }}>
-            <Icon size={22} strokeWidth={active ? 2.4 : 1.8} />
-            <span style={{ fontSize: "11px", fontWeight: active ? 700 : 500, marginTop: "2px" }}>
+          <a
+            key={tab.href}
+            href={tab.href}
+            style={{ ...styles.tab, color: active ? "#2B4339" : "#9A9A90" }}
+          >
+            <Icon size={22} strokeWidth={active ? 2.2 : 1.8} />
+            <span
+              style={{
+                fontFamily: "var(--font-work-sans), -apple-system, sans-serif",
+                fontSize: "11px",
+                fontWeight: active ? 600 : 500,
+                marginTop: "2px",
+              }}
+            >
               {tab.label}
             </span>
           </a>
@@ -42,8 +53,8 @@ const styles = {
     display: "flex",
     justifyContent: "space-around",
     alignItems: "center",
-    background: "#FCFBF8",
-    borderTop: "1px solid #E1DDD2",
+    background: "#FAF6F0",
+    borderTop: "1px solid #E5DFD2",
     padding: "8px 0 max(8px, env(safe-area-inset-bottom))",
   },
   tab: {

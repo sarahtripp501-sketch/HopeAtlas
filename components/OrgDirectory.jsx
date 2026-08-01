@@ -23,10 +23,12 @@ export default function OrgDirectory() {
   const [customOrgs, setCustomOrgs] = useState([]);
 
   useEffect(() => {
-    const id = getOrCreateSessionId();
-    setSessionId(id);
-    getSavedOrgs(id).then(setSaved).catch(() => setSaved([]));
-    getCustomOrgs().then(setCustomOrgs).catch(() => setCustomOrgs([]));
+    (async () => {
+      const id = await getOrCreateSessionId();
+      setSessionId(id);
+      getSavedOrgs(id).then(setSaved).catch(() => setSaved([]));
+      getCustomOrgs().then(setCustomOrgs).catch(() => setCustomOrgs([]));
+    })();
   }, []);
 
   const isSaved = (o) => saved.some((s) => s.url === o.url);

@@ -29,7 +29,7 @@ export default function AINavigatorPage() {
   }, [messages]);
 
   async function loadContext() {
-    const sessionId = getOrCreateSessionId();
+    const sessionId = await getOrCreateSessionId();
 
     const profile = await getProfile(sessionId).catch(() => null);
 

@@ -37,7 +37,7 @@ const [testResult, setTestResult] = useState(null);
   }, []);
 
   async function loadPreferences() {
-    const sessionId = getOrCreateSessionId();
+    const sessionId = await getOrCreateSessionId();
     const { data } = await supabase
       .from("preferences")
       .select("*")
@@ -91,7 +91,7 @@ const [testResult, setTestResult] = useState(null);
 }
   async function handleSave() {
     setSaving(true);
-    const sessionId = getOrCreateSessionId();
+    const sessionId = await getOrCreateSessionId();
 
     const { error } = await supabase.from("preferences").upsert(
       {

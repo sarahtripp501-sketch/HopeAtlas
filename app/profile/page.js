@@ -7,6 +7,7 @@ import { getOrCreateSessionId, getProfile, saveProfile } from "../../lib/supabas
 const FIELDS = [
   { key: "name", label: "Name", placeholder: "e.g. Sarah" },
   { key: "email", label: "Email", placeholder: "e.g. sarah@email.com" },
+  { key: "phone", label: "Phone Number", placeholder: "e.g. +13105551234" },
   { key: "diagnosis", label: "Diagnosis", placeholder: "e.g. Breast cancer" },
   { key: "stage", label: "Stage", placeholder: "e.g. Stage II" },
   { key: "grade", label: "Grade", placeholder: "e.g. Grade 2" },
@@ -14,11 +15,161 @@ const FIELDS = [
   { key: "genetic_variants", label: "Genetic Variants", placeholder: "e.g. BRCA1" },
   { key: "age", label: "Age", placeholder: "e.g. 45" },
   { key: "insurance", label: "Insurance", placeholder: "e.g. Private, Medicare, Medicaid, Uninsured" },
-  { key: "income", label: "Income", placeholder: "e.g. Household income range" },
+  { key: "income", label: "Annual Income", placeholder: "e.g. Annual household income range" },
   { key: "zip_code", label: "ZIP Code", placeholder: "e.g. 90210" },
   { key: "current_treatment", label: "Current Treatment", placeholder: "e.g. Chemotherapy" },
   { key: "past_treatment", label: "Past Treatment", placeholder: "e.g. Surgery, radiation" },
 ];
+
+// Based on the NCI's list of cancer types. Not exhaustive of every rare subtype,
+// which is why "Other" always stays available as a free-text fallback below.
+const CANCER_TYPES = [
+  "Adrenal cortical carcinoma",
+  "Anal cancer",
+  "Appendix cancer",
+  "Bile duct cancer (cholangiocarcinoma)",
+  "Bladder cancer",
+  "Bone cancer",
+  "Brain tumor - Glioblastoma",
+  "Brain tumor - Meningioma",
+  "Brain tumor - Medulloblastoma",
+  "Breast cancer",
+  "Carcinoma of unknown primary",
+  "Cervical cancer",
+  "Chordoma",
+  "Colorectal cancer",
+  "Endometrial (uterine) cancer",
+  "Esophageal cancer",
+  "Ewing sarcoma",
+  "Gallbladder cancer",
+  "Gastric (stomach) cancer",
+  "Gastrointestinal stromal tumor (GIST)",
+  "Head and neck cancer",
+  "Kidney (renal cell) cancer",
+  "Laryngeal cancer",
+  "Leukemia - Acute lymphoblastic (ALL)",
+  "Leukemia - Acute myeloid (AML)",
+  "Leukemia - Chronic lymphocytic (CLL)",
+  "Leukemia - Chronic myeloid (CML)",
+  "Liver cancer",
+  "Lung cancer - Non-small cell",
+  "Lung cancer - Small cell",
+  "Lymphoma - Hodgkin",
+  "Lymphoma - Non-Hodgkin",
+  "Melanoma",
+  "Mesothelioma",
+  "Multiple myeloma",
+  "Myelodysplastic syndrome (MDS)",
+  "Myeloproliferative neoplasm",
+  "Neuroblastoma",
+  "Neuroendocrine tumor",
+  "Oral cancer",
+  "Ovarian cancer",
+  "Pancreatic cancer",
+  "Penile cancer",
+  "Prostate cancer",
+  "Retinoblastoma",
+  "Rhabdomyosarcoma",
+  "Sarcoma - Osteosarcoma",
+  "Sarcoma - Soft tissue",
+  "Skin cancer - Basal cell carcinoma",
+  "Skin cancer - Squamous cell carcinoma",
+  "Testicular cancer",
+  "Thymoma",
+  "Thyroid cancer",
+  "Uterine sarcoma",
+  "Vaginal cancer",
+  "Vulvar cancer",
+  "Wilms tumor (nephroblastoma)",
+].sort();
+
+function DiagnosisField({ value, onChange }) {
+  const [query, setQuery] = useState(value || "");
+  const [open, setOpen] = useState(false);
+  const [customMode, setCustomMode] = useState(!!value && !CANCER_TYPES.includes(value));
+
+  useEffect(() => {
+    setQuery(value || "");
+    setCustomMode(!!value && !CANCER_TYPES.includes(value));
+  }, [value]);
+
+  const filtered = query
+    ? CANCER_TYPES.filter((c) => c.toLowerCase().includes(query.toLowerCase()))
+    : CANCER_TYPES;
+
+  function selectType(type) {
+    if (type === "__other__") {
+      setCustomMode(true);
+      setQuery("");
+      onChange("");
+    } else {
+      setCustomMode(false);
+      setQuery(type);
+      onChange(type);
+    }
+    setOpen(false);
+  }
+
+  if (customMode) {
+    return (
+      <div>
+        <input
+          style={styles.input}
+          placeholder="Enter your diagnosis"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+        />
+        <button
+          type="button"
+          style={styles.backToListButton}
+          onClick={() => {
+            setCustomMode(false);
+            setQuery("");
+            onChange("");
+          }}
+        >
+          ← Choose from list instead
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ position: "relative" }}>
+      <input
+        style={styles.input}
+        placeholder="Start typing to search, e.g. Breast"
+        value={query}
+        onChange={(e) => {
+          setQuery(e.target.value);
+          onChange(e.target.value);
+          setOpen(true);
+        }}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setTimeout(() => setOpen(false), 150)}
+      />
+      {open && (
+        <div style={styles.dropdown}>
+          {filtered.length === 0 && (
+            <div style={styles.dropdownEmpty}>No matches — try "Other" below</div>
+          )}
+          {filtered.slice(0, 40).map((type) => (
+            <div key={type} style={styles.dropdownItem} onMouseDown={() => selectType(type)}>
+              {type}
+            </div>
+          ))}
+          <div
+            style={{ ...styles.dropdownItem, ...styles.dropdownItemOther }}
+            onMouseDown={() => selectType("__other__")}
+          >
+            Other (not listed)
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function ProfilePage() {
   const [sessionId, setSessionId] = useState(null);
   const [form, setForm] = useState({});
@@ -26,16 +177,18 @@ export default function ProfilePage() {
   const [status, setStatus] = useState({ state: "idle", message: "" });
 
   useEffect(() => {
-    const id = getOrCreateSessionId();
-    setSessionId(id);
-    getProfile(id)
-      .then(function (existing) {
-        if (existing) setForm(existing);
-      })
-      .catch(function () {})
-      .finally(function () {
-        setLoading(false);
-      });
+    (async () => {
+      const id = await getOrCreateSessionId();
+      setSessionId(id);
+      getProfile(id)
+        .then(function (existing) {
+          if (existing) setForm(existing);
+        })
+        .catch(function () {})
+        .finally(function () {
+          setLoading(false);
+        });
+    })();
   }, []);
 
   function setField(key, value) {
@@ -61,77 +214,114 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <div style={styles.wrap}>
-        <Loader2 size={22} className="spin" style={{ color: "#2C5F55" }} />
+      <div style={styles.page}>
+        <div style={styles.loadingWrap}>
+          <Loader2 size={22} className="spin" style={{ color: "#2B4339" }} />
+        </div>
       </div>
     );
   }
 
   return (
-    <div style={styles.wrap}>
-      <div style={styles.header}>
-        <div style={styles.iconBox}>
-          <User size={20} />
+    <div style={styles.page}>
+      <div style={styles.wrap}>
+        <div style={styles.header}>
+          <div style={styles.iconBox}>
+            <User size={20} />
+          </div>
+          <div>
+            <span style={styles.eyebrow}>Your details</span>
+            <h1 style={styles.title}>My Profile</h1>
+            <p style={styles.sub}>
+              This information stays on this device for now and is never shown publicly. It'll be
+              used later to match you with relevant grants, trials, and support automatically.
+            </p>
+          </div>
         </div>
-        <div>
-          <h1 style={styles.title}>My Profile</h1>
-          <p style={styles.sub}>
-            This information stays on this device for now and is never shown publicly. It'll be
-            used later to match you with relevant grants, trials, and support automatically.
-          </p>
-        </div>
+
+        <form onSubmit={handleSubmit} style={styles.form}>
+          {FIELDS.map(function (f) {
+            if (f.key === "diagnosis") {
+              return (
+                <label key={f.key} style={styles.label}>
+                  {f.label}
+                  <DiagnosisField
+                    value={form.diagnosis || ""}
+                    onChange={(v) => setField("diagnosis", v)}
+                  />
+                </label>
+              );
+            }
+
+            return (
+              <label key={f.key} style={styles.label}>
+                {f.label}
+                <input
+                  value={form[f.key] || ""}
+                  onChange={function (e) {
+                    setField(f.key, e.target.value);
+                  }}
+                  placeholder={f.placeholder}
+                  style={styles.input}
+                />
+              </label>
+            );
+          })}
+
+          <button type="submit" disabled={status.state === "loading"} style={styles.button}>
+            {status.state === "loading" ? "Saving…" : "Save profile"}
+          </button>
+
+          {status.state === "success" && <p style={styles.success}>{status.message}</p>}
+          {status.state === "error" && <p style={styles.error}>{status.message}</p>}
+        </form>
       </div>
-
-      <form onSubmit={handleSubmit} style={styles.form}>
-        {FIELDS.map(function (f) {
-          return (
-            <label key={f.key} style={styles.label}>
-              {f.label}
-              <input
-                value={form[f.key] || ""}
-                onChange={function (e) {
-                  setField(f.key, e.target.value);
-                }}
-                placeholder={f.placeholder}
-                style={styles.input}
-              />
-            </label>
-          );
-        })}
-
-        <button type="submit" disabled={status.state === "loading"} style={styles.button}>
-          {status.state === "loading" ? "Saving…" : "Save profile"}
-        </button>
-
-        {status.state === "success" && <p style={styles.success}>{status.message}</p>}
-        {status.state === "error" && <p style={styles.error}>{status.message}</p>}
-      </form>
     </div>
   );
 }
 
 const styles = {
+  page: { minHeight: "100vh", background: "#FAF6F0" },
+  loadingWrap: {
+    display: "flex",
+    justifyContent: "center",
+    padding: "60px 0",
+  },
   wrap: {
     maxWidth: "560px",
     margin: "0 auto",
     padding: "30px 18px 50px",
-    fontFamily: "'Public Sans',-apple-system,sans-serif",
-    color: "#262E2A",
+    fontFamily: "var(--font-work-sans), -apple-system, sans-serif",
+    color: "#2A2622",
   },
-  header: { display: "flex", gap: "14px", marginBottom: "22px" },
+  header: { display: "flex", gap: "14px", marginBottom: "26px" },
   iconBox: {
     width: "40px",
     height: "40px",
     borderRadius: "10px",
-    background: "#DBE6E0",
-    color: "#2C5F55",
+    background: "#EDF2EC",
+    color: "#2B4339",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     flexShrink: 0,
   },
-  title: { fontSize: "19px", fontWeight: 700, margin: 0 },
-  sub: { fontSize: "13px", color: "#6E726A", marginTop: "6px", lineHeight: 1.5 },
+  eyebrow: {
+    fontFamily: "var(--font-plex-mono), monospace",
+    fontSize: "11px",
+    letterSpacing: "0.08em",
+    textTransform: "uppercase",
+    color: "#7C9885",
+    display: "block",
+  },
+  title: {
+    fontFamily: "var(--font-fraunces), serif",
+    fontWeight: 500,
+    fontSize: "22px",
+    margin: "4px 0 0",
+    color: "#2A2622",
+  },
+  sub: { fontSize: "13px", color: "#5f6d63", marginTop: "6px", lineHeight: 1.5 },
   form: { display: "flex", flexDirection: "column", gap: "14px" },
   label: {
     display: "flex",
@@ -139,7 +329,7 @@ const styles = {
     gap: "6px",
     fontSize: "13px",
     fontWeight: 600,
-    color: "#333",
+    color: "#2A2622",
   },
   input: {
     fontFamily: "inherit",
@@ -147,7 +337,49 @@ const styles = {
     fontWeight: 400,
     padding: "10px 12px",
     borderRadius: "8px",
-    border: "1px solid #E1DDD2",
+    border: "1px solid #E5DFD2",
+    background: "#FFFFFF",
+    color: "#2A2622",
+    width: "100%",
+  },
+  dropdown: {
+    position: "absolute",
+    top: "calc(100% + 4px)",
+    left: 0,
+    right: 0,
+    background: "#FFFFFF",
+    border: "1px solid #E5DFD2",
+    borderRadius: "8px",
+    maxHeight: "220px",
+    overflowY: "auto",
+    zIndex: 10,
+    boxShadow: "0 6px 16px rgba(42,38,34,0.08)",
+  },
+  dropdownItem: {
+    padding: "9px 12px",
+    fontSize: "13.5px",
+    color: "#2A2622",
+    cursor: "pointer",
+    borderBottom: "1px solid #F2ECE0",
+  },
+  dropdownItemOther: {
+    color: "#2B4339",
+    fontWeight: 600,
+    borderBottom: "none",
+  },
+  dropdownEmpty: {
+    padding: "9px 12px",
+    fontSize: "13px",
+    color: "#9a9488",
+  },
+  backToListButton: {
+    background: "none",
+    border: "none",
+    color: "#2B4339",
+    fontSize: "12px",
+    fontWeight: 600,
+    cursor: "pointer",
+    padding: "6px 0 0",
   },
   button: {
     fontSize: "14px",
@@ -155,11 +387,11 @@ const styles = {
     padding: "11px 16px",
     borderRadius: "9px",
     border: "none",
-    background: "#2C5F55",
-    color: "#fff",
+    background: "#2B4339",
+    color: "#FAF6F0",
     cursor: "pointer",
     marginTop: "6px",
   },
-  success: { fontSize: "13px", color: "#1a7f37" },
-  error: { fontSize: "13px", color: "#c0392b" },
+  success: { fontSize: "13px", color: "#3f6b4a" },
+  error: { fontSize: "13px", color: "#a34430" },
 };

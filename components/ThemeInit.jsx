@@ -7,7 +7,7 @@ export default function ThemeInit() {
   useEffect(function () {
     async function apply() {
       try {
-        const sessionId = getOrCreateSessionId();
+        const sessionId = await getOrCreateSessionId();
         const { data } = await supabase
           .from("preferences")
           .select("theme, large_text, reduce_motion")

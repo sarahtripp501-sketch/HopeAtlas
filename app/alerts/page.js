@@ -11,14 +11,57 @@ export default function AlertsPage() {
   const [newResources, setNewResources] = useState([]);
   const [followUps, setFollowUps] = useState([]);
   const [seenKeys, setSeenKeys] = useState(new Set());
+  const [hasPhone, setHasPhone] = useState(false);
+  const [notifyEmail, setNotifyEmail] = useState(true);
+  const [notifyText, setNotifyText] = useState(false);
+  const [prefsSaving, setPrefsSaving] = useState(false);
 
   useEffect(() => {
     checkAlerts();
+    loadNotificationPrefs();
   }, []);
+
+  async function loadNotificationPrefs() {
+    const sessionId = await getOrCreateSessionId();
+
+    const [profileRes, prefsRes] = await Promise.all([
+      getProfile(sessionId).catch(() => null),
+      supabase.from("preferences").select("notify_email, notify_text").eq("session_id", sessionId).maybeSingle(),
+    ]);
+
+    setHasPhone(!!(profileRes && profileRes.phone));
+
+    if (prefsRes.data) {
+      setNotifyEmail(prefsRes.data.notify_email ?? true);
+      setNotifyText(prefsRes.data.notify_text ?? false);
+    }
+  }
+
+  async function toggleNotifyEmail() {
+    const next = !notifyEmail;
+    setNotifyEmail(next);
+    await savePrefs({ notify_email: next, notify_text: notifyText });
+  }
+
+  async function toggleNotifyText() {
+    if (!hasPhone) return;
+    const next = !notifyText;
+    setNotifyText(next);
+    await savePrefs({ notify_email: notifyEmail, notify_text: next });
+  }
+
+  async function savePrefs(values) {
+    setPrefsSaving(true);
+    const sessionId = await getOrCreateSessionId();
+    await supabase
+      .from("preferences")
+      .upsert({ session_id: sessionId, ...values }, { onConflict: "session_id" });
+    setPrefsSaving(false);
+  }
 
   async function checkAlerts() {
     setLoading(true);
-    const sessionId = getOrCreateSessionId();
+    const sessionId = await getOrCreateSessionId();
 
     const [profile, seenRes, trialApps, grantApps] = await Promise.all([
       getProfile(sessionId).catch(() => null),
@@ -92,7 +135,7 @@ export default function AlertsPage() {
   }
 
   async function markSeen(itemKey, category) {
-    const sessionId = getOrCreateSessionId();
+    const sessionId = await getOrCreateSessionId();
     await supabase.from("seen_alerts").insert({ session_id: sessionId, item_key: itemKey, category });
 
     setSeenKeys((prev) => new Set(prev).add(itemKey));
@@ -117,6 +160,31 @@ export default function AlertsPage() {
           ? "You're all caught up."
           : `${totalCount} new item${totalCount !== 1 ? "s" : ""} since your last visit.`}
       </p>
+
+      <div style={styles.prefsCard}>
+        <div style={styles.prefsTitle}>Notification preferences</div>
+
+        <label style={styles.prefsRow}>
+          <input type="checkbox" checked={notifyEmail} onChange={toggleNotifyEmail} disabled={prefsSaving} />
+          Email notifications
+        </label>
+
+        <label style={{ ...styles.prefsRow, opacity: hasPhone ? 1 : 0.5 }}>
+          <input
+            type="checkbox"
+            checked={notifyText}
+            onChange={toggleNotifyText}
+            disabled={prefsSaving || !hasPhone}
+          />
+          Text notifications
+        </label>
+
+        {!hasPhone && (
+          <p style={styles.prefsHint}>
+            Add a phone number in <a href="/profile" style={styles.prefsLink}>your profile</a> to enable text notifications.
+          </p>
+        )}
+      </div>
 
       {loading && (
         <div style={styles.loadingRow}>
@@ -269,4 +337,15 @@ const styles = {
     flexShrink: 0,
   },
   empty: { color: "#999", fontSize: "14px", textAlign: "center", marginTop: "20px" },
+  prefsCard: {
+    border: "1px solid #E1DDD2",
+    borderRadius: "10px",
+    padding: "14px",
+    background: "#FCFBF8",
+    marginBottom: "20px",
+  },
+  prefsTitle: { fontSize: "13px", fontWeight: 700, marginBottom: "10px" },
+  prefsRow: { display: "flex", alignItems: "center", gap: "8px", fontSize: "13.5px", marginBottom: "8px", cursor: "pointer" },
+  prefsHint: { fontSize: "12px", color: "#6E726A", marginTop: "4px" },
+  prefsLink: { color: "#3F628F", fontWeight: 600 },
 };

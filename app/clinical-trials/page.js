@@ -39,7 +39,7 @@ export default function ClinicalTrialsPage() {
   }, []);
 
   async function loadAll() {
-    const sessionId = getOrCreateSessionId();
+    const sessionId = await getOrCreateSessionId();
     console.log("clinical trials session id:", sessionId);
     const [profileData, bioRes, txRes, savedRes, appRes] = await Promise.all([
       getProfile(sessionId).catch(() => null),
@@ -110,7 +110,7 @@ export default function ClinicalTrialsPage() {
   }
 
   async function toggleSave(trial) {
-    const sessionId = getOrCreateSessionId();
+    const sessionId = await getOrCreateSessionId();
     if (isSaved(trial)) {
       const match = saved.find((s) => s.trial_url === trial.url);
       await supabase.from("saved_trials").delete().eq("id", match.id).eq("session_id", sessionId);
@@ -130,7 +130,7 @@ export default function ClinicalTrialsPage() {
   }
 
   async function handleRemoveSaved(id) {
-    const sessionId = getOrCreateSessionId();
+    const sessionId = await getOrCreateSessionId();
     await supabase.from("saved_trials").delete().eq("id", id).eq("session_id", sessionId);
     setSaved((prev) => prev.filter((s) => s.id !== id));
   }
@@ -144,7 +144,7 @@ export default function ClinicalTrialsPage() {
 
   async function handleSaveApp() {
     if (!appTrialName) return;
-    const sessionId = getOrCreateSessionId();
+    const sessionId = await getOrCreateSessionId();
     const { data, error } = await supabase
       .from("trial_applications")
       .insert({ session_id: sessionId, trial_name: appTrialName, status: appStatus, notes: appNotes })
@@ -156,7 +156,7 @@ export default function ClinicalTrialsPage() {
   }
 
   async function handleUpdateAppStatus(id, status) {
-    const sessionId = getOrCreateSessionId();
+    const sessionId = await getOrCreateSessionId();
     await supabase.from("trial_applications").update({ status }).eq("id", id).eq("session_id", sessionId);
     setApplications((prev) => prev.map((a) => (a.id === id ? { ...a, status } : a)));
   }
@@ -164,7 +164,7 @@ export default function ClinicalTrialsPage() {
   async function handleDeleteApp(id) {
     const confirmed = window.confirm("Remove this application?");
     if (!confirmed) return;
-    const sessionId = getOrCreateSessionId();
+    const sessionId = await getOrCreateSessionId();
     await supabase.from("trial_applications").delete().eq("id", id).eq("session_id", sessionId);
     setApplications((prev) => prev.filter((a) => a.id !== id));
   }

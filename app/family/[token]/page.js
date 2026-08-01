@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
-import { supabase } from "../../../lib/supabase";
 
 const QUICK_REPLIES = [
   "❤️ Thinking of you today.",
@@ -30,104 +29,69 @@ export default function FamilyViewPage() {
     loadData();
   }, [token]);
 
-async function loadData() {
-    const { data: memberData, error: memberError } = await supabase
-      .from("care_circle_members")
-      .select("*")
-      .eq("share_token", token)
-      .maybeSingle();
+  async function loadData() {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/family-view?token=${encodeURIComponent(token)}`);
+      const data = await res.json();
 
-    if (memberError || !memberData) {
+      if (data.notFound) {
+        setNotFound(true);
+        setLoading(false);
+        return;
+      }
+
+      setMember(data.member);
+      setReplyName(data.member.name);
+      setUpdates(data.updates || []);
+      setAppointments(data.appointments || []);
+      setMedications(data.medications || []);
+      setTasks(data.tasks || []);
+    } catch (err) {
+      console.error(err);
       setNotFound(true);
-      setLoading(false);
-      return;
     }
-
-    if (memberData.revoked) {
-      setNotFound(true);
-      setLoading(false);
-      return;
-    }
-
-    if (memberData.expires_at && new Date(memberData.expires_at) < new Date()) {
-      setNotFound(true);
-      setLoading(false);
-      return;
-    }
-
-    setMember(memberData);
-    setReplyName(memberData.name);
-
-    supabase
-      .from("care_circle_members")
-      .update({ last_viewed_at: new Date().toISOString() })
-      .eq("id", memberData.id)
-      .then(() => {});
-
-    if (memberData.view_updates) {
-      const { data } = await supabase
-        .from("care_updates")
-        .select("*")
-        .eq("session_id", memberData.session_id)
-        .order("created_at", { ascending: false });
-      setUpdates(data || []);
-    }
-
-    if (memberData.view_appointments) {
-      const { data } = await supabase
-        .from("appointments")
-        .select("*")
-        .eq("session_id", memberData.session_id)
-        .order("appt_date", { ascending: true });
-      setAppointments(data || []);
-    }
-
-    if (memberData.view_medications) {
-      const { data } = await supabase
-        .from("medications")
-        .select("*")
-        .eq("session_id", memberData.session_id)
-        .eq("status", "Active");
-      setMedications(data || []);
-    }
-
-    if (memberData.create_tasks) {
-      const { data } = await supabase
-        .from("care_tasks")
-        .select("*")
-        .eq("session_id", memberData.session_id)
-        .order("created_at", { ascending: false });
-      setTasks(data || []);
-    }
-
     setLoading(false);
   }
 
   async function handleSendReply() {
     if (!replyText.trim() || !member) return;
 
-    const { error } = await supabase.from("support_wall_messages").insert({
-      session_id: member.session_id,
-      member_name: replyName || member.name,
-      message: replyText,
-    });
-
-    if (error) {
-      console.error(error);
-      return;
+    try {
+      const res = await fetch("/api/family-reply", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, replyName: replyName || member.name, replyText }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        console.error(data.error);
+        return;
+      }
+      setReplyText("");
+      setSent(true);
+      setTimeout(() => setSent(false), 3000);
+    } catch (err) {
+      console.error(err);
     }
-
-    setReplyText("");
-    setSent(true);
-    setTimeout(() => setSent(false), 3000);
   }
 
   async function claimTask(task) {
-    await supabase
-      .from("care_tasks")
-      .update({ status: "claimed", claimed_by: member.name })
-      .eq("id", task.id);
-    await loadData();
+    try {
+      const res = await fetch("/api/family-claim-task", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, taskId: task.id }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        console.error(data.error);
+        return;
+      }
+      await loadData();
+    } catch (err) {
+      console.error(err);
+    }
   }
 
   if (loading) return <div style={styles.page}>Loading...</div>;

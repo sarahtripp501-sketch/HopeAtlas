@@ -21,7 +21,7 @@ export default function ConnectedAccountsPage() {
   }, []);
 
   async function loadInterest() {
-    const sessionId = getOrCreateSessionId();
+    const sessionId = await getOrCreateSessionId();
     const { data, error } = await supabase
       .from("connected_account_interest")
       .select("*")
@@ -38,7 +38,7 @@ export default function ConnectedAccountsPage() {
   }
 
   async function toggleConnected(type) {
-    const sessionId = getOrCreateSessionId();
+    const sessionId = await getOrCreateSessionId();
     const newValue = !connected[type];
 
     setConnected((prev) => ({ ...prev, [type]: newValue }));

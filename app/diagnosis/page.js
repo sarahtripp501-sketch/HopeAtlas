@@ -19,7 +19,7 @@ export default function DiagnosisPage() {
   }, []);
 
   async function loadEvents() {
-    const sessionId = getOrCreateSessionId();
+    const sessionId = await getOrCreateSessionId();
     const { data, error } = await supabase
       .from("diagnosis_events")
       .select("*")
@@ -51,7 +51,7 @@ export default function DiagnosisPage() {
   async function handleSave() {
     if (!title || !eventDate) return;
 
-    const sessionId = getOrCreateSessionId();
+    const sessionId = await getOrCreateSessionId();
 
     if (editingId) {
       const { error } = await supabase
@@ -97,7 +97,7 @@ export default function DiagnosisPage() {
     const confirmed = window.confirm("Delete this event? This can't be undone.");
     if (!confirmed) return;
 
-    const sessionId = getOrCreateSessionId();
+    const sessionId = await getOrCreateSessionId();
     const { error } = await supabase
       .from("diagnosis_events")
       .delete()
@@ -116,153 +116,186 @@ export default function DiagnosisPage() {
 
   return (
     <div style={styles.page}>
-      <div style={styles.header}>
-        <h1 style={styles.heading}>My Diagnosis</h1>
-        <button style={styles.addButton} onClick={openNewForm}>
-          <Plus size={20} />
-        </button>
-      </div>
-
-      {current && (
-        <div style={styles.currentCard}>
-          <div style={styles.currentLabel}>Current status</div>
-          <div style={styles.currentTitle}>
-            {current.details || current.title}
+      <div style={styles.wrap}>
+        <div style={styles.header}>
+          <div>
+            <span style={styles.eyebrow}>My Journey</span>
+            <h1 style={styles.heading}>My Diagnosis</h1>
           </div>
+          <button style={styles.addButton} onClick={openNewForm}>
+            <Plus size={20} />
+          </button>
         </div>
-      )}
 
-      {showForm && (
-        <div style={styles.formOverlay}>
-          <div style={styles.formCard}>
-            <div style={styles.formHeader}>
-              <span style={styles.formTitle}>
-                {editingId ? "Edit event" : "Add event"}
-              </span>
-              <button
-                style={styles.closeButton}
-                onClick={() => setShowForm(false)}
+        {current && (
+          <div style={styles.currentCard}>
+            <div style={styles.currentLabel}>Current status</div>
+            <div style={styles.currentTitle}>
+              {current.details || current.title}
+            </div>
+          </div>
+        )}
+
+        {showForm && (
+          <div style={styles.formOverlay}>
+            <div style={styles.formCard}>
+              <div style={styles.formHeader}>
+                <span style={styles.formTitle}>
+                  {editingId ? "Edit event" : "Add event"}
+                </span>
+                <button
+                  style={styles.closeButton}
+                  onClick={() => setShowForm(false)}
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <input
+                style={styles.input}
+                placeholder="Title (e.g. Restaging scan)"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+              />
+              <input
+                style={styles.input}
+                placeholder="Details (e.g. Progressed to stage 4)"
+                value={details}
+                onChange={(e) => setDetails(e.target.value)}
+              />
+              <input
+                style={styles.input}
+                type="date"
+                value={eventDate}
+                onChange={(e) => setEventDate(e.target.value)}
+              />
+              <select
+                style={styles.input}
+                value={eventType}
+                onChange={(e) => setEventType(e.target.value)}
               >
-                <X size={20} />
+                <option value="milestone">Milestone</option>
+                <option value="progression">Progression</option>
+              </select>
+
+              <button style={styles.saveButton} onClick={handleSave}>
+                Save
               </button>
             </div>
-
-            <input
-              style={styles.input}
-              placeholder="Title (e.g. Restaging scan)"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-            />
-            <input
-              style={styles.input}
-              placeholder="Details (e.g. Progressed to stage 4)"
-              value={details}
-              onChange={(e) => setDetails(e.target.value)}
-            />
-            <input
-              style={styles.input}
-              type="date"
-              value={eventDate}
-              onChange={(e) => setEventDate(e.target.value)}
-            />
-            <select
-              style={styles.input}
-              value={eventType}
-              onChange={(e) => setEventType(e.target.value)}
-            >
-              <option value="milestone">Milestone</option>
-              <option value="progression">Progression</option>
-            </select>
-
-            <button style={styles.saveButton} onClick={handleSave}>
-              Save
-            </button>
           </div>
-        </div>
-      )}
+        )}
 
-      {loading && <p style={styles.empty}>Loading...</p>}
-      {!loading && events.length === 0 && (
-        <p style={styles.empty}>No diagnosis history yet. Tap + to add the first event.</p>
-      )}
+        {loading && <p style={styles.empty}>Loading...</p>}
+        {!loading && events.length === 0 && (
+          <p style={styles.empty}>No diagnosis history yet. Tap + to add the first event.</p>
+        )}
 
-      {!loading && events.length > 0 && (
-        <div style={styles.timeline}>
-          <div style={styles.timelineLine} />
-          {events.map((ev) => (
-            <div key={ev.id} style={styles.timelineItem}>
-              <div
-                style={{
-                  ...styles.dot,
-                  background: ev.event_type === "progression" ? "#E24B4A" : "#378ADD",
-                }}
-              />
-              <div style={styles.itemTop}>
-                <div>
-                  <div style={styles.eventDate}>{ev.event_date}</div>
-                  <div style={styles.eventTitle}>{ev.title}</div>
-                  {ev.details && <div style={styles.eventDetails}>{ev.details}</div>}
-                </div>
-                <div style={styles.itemActions}>
-                  <button style={styles.iconButton} onClick={() => openEditForm(ev)}>
-                    <Pencil size={14} />
-                  </button>
-                  <button style={styles.iconButton} onClick={() => handleDelete(ev.id)}>
-                    <Trash2 size={14} />
-                  </button>
+        {!loading && events.length > 0 && (
+          <div style={styles.timeline}>
+            <div style={styles.timelineLine} />
+            {events.map((ev) => (
+              <div key={ev.id} style={styles.timelineItem}>
+                <div
+                  style={{
+                    ...styles.dot,
+                    background: ev.event_type === "progression" ? "#B86F4E" : "#7C9885",
+                  }}
+                />
+                <div style={styles.itemTop}>
+                  <div>
+                    <div style={styles.eventDate}>{ev.event_date}</div>
+                    <div style={styles.eventTitle}>{ev.title}</div>
+                    {ev.details && <div style={styles.eventDetails}>{ev.details}</div>}
+                  </div>
+                  <div style={styles.itemActions}>
+                    <button style={styles.iconButton} onClick={() => openEditForm(ev)}>
+                      <Pencil size={14} />
+                    </button>
+                    <button style={styles.iconButton} onClick={() => handleDelete(ev.id)}>
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
-      )}
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
 
 const styles = {
-  page: { padding: "16px", paddingBottom: "80px", maxWidth: "600px", margin: "0 auto" },
+  page: { minHeight: "100vh", background: "#FAF6F0" },
+  wrap: {
+    padding: "16px",
+    paddingBottom: "80px",
+    maxWidth: "600px",
+    margin: "0 auto",
+    fontFamily: "var(--font-work-sans), -apple-system, sans-serif",
+  },
   header: {
     display: "flex",
     justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: "16px",
+    alignItems: "flex-start",
+    marginBottom: "18px",
   },
-  heading: { fontSize: "20px", fontWeight: 700 },
+  eyebrow: {
+    fontFamily: "var(--font-plex-mono), monospace",
+    fontSize: "11px",
+    letterSpacing: "0.08em",
+    textTransform: "uppercase",
+    color: "#7C9885",
+    display: "block",
+    marginBottom: "4px",
+  },
+  heading: {
+    fontFamily: "var(--font-fraunces), serif",
+    fontWeight: 500,
+    fontSize: "24px",
+    color: "#2A2622",
+    margin: 0,
+  },
   addButton: {
-    background: "#FCFBF8",
-    border: "1px solid #E1DDD2",
+    background: "#FFFFFF",
+    border: "1px solid #E5DFD2",
     borderRadius: "8px",
     padding: "6px 10px",
     cursor: "pointer",
+    color: "#2B4339",
   },
   currentCard: {
-    background: "#FCFBF8",
-    border: "1px solid #E1DDD2",
+    background: "#FFFFFF",
+    border: "1px solid #E5DFD2",
     borderRadius: "12px",
     padding: "14px",
-    marginBottom: "18px",
+    marginBottom: "20px",
   },
   currentLabel: {
-    fontSize: "12px",
-    fontWeight: 700,
-    letterSpacing: "0.05em",
+    fontFamily: "var(--font-plex-mono), monospace",
+    fontSize: "11px",
+    letterSpacing: "0.06em",
     textTransform: "uppercase",
-    color: "#9A9A90",
+    color: "#7C9885",
     marginBottom: "4px",
   },
-  currentTitle: { fontSize: "16px", fontWeight: 600 },
+  currentTitle: {
+    fontFamily: "var(--font-fraunces), serif",
+    fontWeight: 500,
+    fontSize: "17px",
+    color: "#2A2622",
+  },
   formOverlay: {
     position: "fixed",
     inset: 0,
-    background: "rgba(0,0,0,0.4)",
+    background: "rgba(42,38,34,0.45)",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     zIndex: 50,
   },
   formCard: {
-    background: "#fff",
+    background: "#FAF6F0",
     borderRadius: "12px",
     padding: "20px",
     width: "90%",
@@ -274,27 +307,35 @@ const styles = {
     alignItems: "center",
     marginBottom: "12px",
   },
-  formTitle: { fontWeight: 700, fontSize: "16px" },
-  closeButton: { background: "none", border: "none", cursor: "pointer" },
+  formTitle: {
+    fontFamily: "var(--font-fraunces), serif",
+    fontWeight: 500,
+    fontSize: "17px",
+    color: "#2A2622",
+  },
+  closeButton: { background: "none", border: "none", cursor: "pointer", color: "#5f6d63" },
   input: {
     width: "100%",
     padding: "10px",
     marginBottom: "10px",
     borderRadius: "8px",
-    border: "1px solid #E1DDD2",
+    border: "1px solid #E5DFD2",
     fontSize: "14px",
+    background: "#FFFFFF",
+    color: "#2A2622",
+    fontFamily: "inherit",
   },
   saveButton: {
     width: "100%",
     padding: "10px",
     borderRadius: "8px",
     border: "none",
-    background: "#111",
-    color: "#fff",
+    background: "#2B4339",
+    color: "#FAF6F0",
     fontWeight: 600,
     cursor: "pointer",
   },
-  empty: { color: "#999", fontSize: "14px", textAlign: "center", marginTop: "40px" },
+  empty: { color: "#9a9488", fontSize: "14px", textAlign: "center", marginTop: "40px" },
   timeline: { position: "relative", paddingLeft: "24px" },
   timelineLine: {
     position: "absolute",
@@ -302,7 +343,7 @@ const styles = {
     top: "6px",
     bottom: "6px",
     width: "2px",
-    background: "#E1DDD2",
+    background: "#E5DFD2",
   },
   timelineItem: { position: "relative", marginBottom: "20px" },
   dot: {
@@ -323,14 +364,15 @@ const styles = {
     gap: "6px",
     flexShrink: 0,
   },
-  eventDate: { fontSize: "12px", color: "#9A9A90", marginBottom: "2px" },
-  eventTitle: { fontSize: "14px", fontWeight: 600 },
-  eventDetails: { fontSize: "13px", color: "#6E726A", marginTop: "2px" },
+  eventDate: { fontSize: "12px", color: "#9a9488", marginBottom: "2px" },
+  eventTitle: { fontSize: "14px", fontWeight: 600, color: "#2A2622" },
+  eventDetails: { fontSize: "13px", color: "#5f6d63", marginTop: "2px" },
   iconButton: {
-    background: "none",
-    border: "1px solid #E1DDD2",
+    background: "#FFFFFF",
+    border: "1px solid #E5DFD2",
     borderRadius: "6px",
     padding: "5px 7px",
     cursor: "pointer",
+    color: "#5f6d63",
   },
 };

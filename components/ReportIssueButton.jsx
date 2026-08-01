@@ -19,7 +19,7 @@ export default function ReportIssueButton({ resourceName, resourceUrl }) {
   const [submitted, setSubmitted] = useState(false);
 
  async function handleSubmit() {
-    const sessionId = getOrCreateSessionId();
+    const sessionId = await getOrCreateSessionId();
     const { error } = await supabase.from("resource_reports").insert({
       session_id: sessionId,
       resource_name: resourceName,

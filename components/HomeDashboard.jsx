@@ -11,6 +11,7 @@ import {
   Loader2,
   Plus,
   Heart,
+  Map,
 } from "lucide-react";
 import { getOrCreateSessionId, getProfile, supabase } from "../lib/supabase";
 
@@ -49,20 +50,22 @@ export default function HomeDashboard() {
   const [activeMeds, setActiveMeds] = useState([]);
 
   useEffect(function () {
-    const id = getOrCreateSessionId();
+    (async function () {
+      const id = await getOrCreateSessionId();
 
-    getProfile(id)
-      .then(function (p) {
-        setProfile(p);
-      })
-      .catch(function () {})
-      .finally(function () {
-        setLoaded(true);
-      });
+      getProfile(id)
+        .then(function (p) {
+          setProfile(p);
+        })
+        .catch(function () {})
+        .finally(function () {
+          setLoaded(true);
+        });
 
-    loadNextAppointment(id);
-    loadCareCircle(id);
-    loadMedications(id);
+      loadNextAppointment(id);
+      loadCareCircle(id);
+      loadMedications(id);
+    })();
   }, []);
 
   async function loadNextAppointment(sessionId) {
@@ -160,277 +163,247 @@ export default function HomeDashboard() {
   return (
     <main style={styles.page}>
       <div style={styles.wrap}>
-        <div style={styles.greetingRow}>
-          <div>
-            <div style={styles.greeting}>
-              {profile && profile.name
-                ? "Hello, " + profile.name
-                : "Hello there"}
-            </div>
-
-            {profile && (profile.diagnosis || profile.stage) && (
-              <div style={styles.diagnosisLine}>
-                {[profile.stage, profile.diagnosis]
-                  .filter(Boolean)
-                  .join(" ")}
-              </div>
-            )}
-
-            {!hasProfile && (
-              <div style={styles.diagnosisLine}>
-                <a
-                  href="/profile"
-                  style={{
-                    color: "#3F628F",
-                    fontWeight: 600,
-                    textDecoration: "none",
-                  }}
-                >
-                  Set up your profile
-                </a>{" "}
-                to see a personalized summary here.
-              </div>
-            )}
+        <div style={styles.topline}>
+          <div style={styles.markCircle}>
+            <Map size={12} color="#FAF6F0" />
           </div>
+          <span style={styles.eyebrow}>Hope Atlas</span>
         </div>
 
-        <div style={styles.sectionLabel}>Today&apos;s Summary</div>
-
-        <div
-          style={styles.card}
-          onClick={
-            matchState.status !== "loading" ? checkMatches : undefined
-          }
+        {/* faint contour-line watermark, purely decorative */}
+        <svg
+          width="200"
+          height="130"
+          viewBox="0 0 200 130"
+          style={styles.contours}
+          aria-hidden="true"
         >
-          <div style={styles.cardRow}>
-            <div style={styles.iconBox}>
-              <FlaskConical size={16} />
-            </div>
+          <path
+            d="M0,65 Q50,25 100,60 T200,45"
+            stroke="#7C9885"
+            strokeWidth="1"
+            fill="none"
+          />
+          <path
+            d="M0,88 Q50,52 100,82 T200,72"
+            stroke="#7C9885"
+            strokeWidth="1"
+            fill="none"
+          />
+          <path
+            d="M0,108 Q50,78 100,102 T200,95"
+            stroke="#7C9885"
+            strokeWidth="1"
+            fill="none"
+          />
+        </svg>
 
-            <div style={{ flex: 1 }}>
-              {matchState.status === "idle" && (
-                <div style={styles.cardTitle}>
-                  Tap to check clinical trial matches
-                </div>
-              )}
-
-              {matchState.status === "loading" && (
-                <div style={styles.cardTitle}>
-                  <Loader2
-                    size={14}
-                    className="spin"
-                    style={{
-                      verticalAlign: "middle",
-                      marginRight: "6px",
-                    }}
-                  />
-                  Checking your matches…
-                </div>
-              )}
-
-              {matchState.status === "done" && (
-                <div style={styles.cardTitle}>
-                  {matchState.trialCount} clinical trial
-                  {matchState.trialCount !== 1 ? "s" : ""} found for your
-                  profile
-                </div>
-              )}
-
-              {matchState.status === "error" && (
-                <div style={styles.cardTitle}>
-                  Couldn&apos;t check right now — tap to retry
-                </div>
-              )}
-            </div>
+        <div style={styles.greetingRow}>
+          <div style={styles.greeting}>
+            {profile && profile.name ? `Hello, ${profile.name}` : "Hello there"}
           </div>
 
-          <div style={{ ...styles.cardRow, marginTop: "10px" }}>
-            <div style={styles.iconBox}>
-              <HandCoins size={16} />
+          {profile && (profile.diagnosis || profile.stage) && (
+            <div style={styles.diagnosisLine}>
+              {[profile.stage, profile.diagnosis].filter(Boolean).join(" ")}
             </div>
-
-            <div style={{ flex: 1 }}>
-              {matchState.status === "done" ? (
-                <div style={styles.cardTitle}>
-                  {matchState.grantCount} financial assistance program
-                  {matchState.grantCount !== 1 ? "s" : ""} found
-                </div>
-              ) : (
-                <div style={styles.cardTitle}>
-                  Financial assistance matches will show here too
-                </div>
-              )}
-            </div>
-          </div>
-
-          {matchState.status === "done" && (
-            <a href="/discover" style={styles.viewLink}>
-              See full results in Discover →
-            </a>
           )}
+
+          {!hasProfile && (
+            <div style={styles.diagnosisLine}>
+              <a href="/profile" style={styles.inlineLink}>
+                Set up your profile
+              </a>{" "}
+              to see a personalized summary here.
+            </div>
+          )}
+
+          <div style={styles.pathSubtitle}>Here&apos;s your path for today.</div>
         </div>
 
-        {nextAppointment ? (
-          <a
-            href="/appointments"
-            style={{
-              ...styles.card,
-              textDecoration: "none",
-              display: "block",
-            }}
+        <div style={styles.path}>
+          <div style={styles.pathLine} />
+
+          <WaypointItem
+            markerColor="#C9A227"
+            filled={matchState.status === "done"}
+            onClick={matchState.status !== "loading" ? checkMatches : undefined}
           >
-            <div style={styles.cardRow}>
-              <div style={styles.iconBox}>
-                <Calendar size={16} />
-              </div>
-
+            <div style={styles.itemRow}>
+              <FlaskConical size={16} color="#8a6b12" />
               <div style={{ flex: 1 }}>
-                <div style={styles.cardTitle}>
-                  {nextAppointment.title}
-                </div>
-
-                <div style={styles.diagnosisLine}>
-                  {nextAppointment.appt_date} at{" "}
-                  {nextAppointment.appt_time}
-                </div>
+                {matchState.status === "idle" && (
+                  <div style={styles.itemTitle}>
+                    Tap to check clinical trial matches
+                  </div>
+                )}
+                {matchState.status === "loading" && (
+                  <div style={styles.itemTitle}>
+                    <Loader2
+                      size={14}
+                      className="spin"
+                      style={{ verticalAlign: "middle", marginRight: "6px" }}
+                    />
+                    Checking your matches…
+                  </div>
+                )}
+                {matchState.status === "done" && (
+                  <div style={styles.itemTitle}>
+                    {matchState.trialCount} clinical trial
+                    {matchState.trialCount !== 1 ? "s" : ""} found for your
+                    profile
+                  </div>
+                )}
+                {matchState.status === "error" && (
+                  <div style={styles.itemTitle}>
+                    Couldn&apos;t check right now — tap to retry
+                  </div>
+                )}
               </div>
             </div>
-          </a>
-        ) : (
-          <EmptyCard
-            icon={<Calendar size={16} />}
-            title="No upcoming appointments"
-            href="/appointments"
-          />
-        )}
 
-        {activeMeds.length > 0 ? (
-          <a
-            href="/medications"
-            style={{
-              ...styles.card,
-              textDecoration: "none",
-              display: "block",
-            }}
-          >
-            <div style={styles.cardRow}>
-              <div style={styles.iconBox}>
-                <Pill size={16} />
-              </div>
-
+            <div style={{ ...styles.itemRow, marginTop: "10px" }}>
+              <HandCoins size={16} color="#8a6b12" />
               <div style={{ flex: 1 }}>
-                <div style={styles.cardTitle}>
+                {matchState.status === "done" ? (
+                  <div style={styles.itemTitle}>
+                    {matchState.grantCount} financial assistance program
+                    {matchState.grantCount !== 1 ? "s" : ""} found
+                  </div>
+                ) : (
+                  <div style={styles.itemSub}>
+                    Financial assistance matches will show here too
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {matchState.status === "done" && (
+              <a href="/discover" style={styles.viewLink}>
+                See full results in Discover →
+              </a>
+            )}
+          </WaypointItem>
+
+          <WaypointItem
+            markerColor="#7C9885"
+            href={nextAppointment ? "/appointments" : "/appointments"}
+          >
+            {nextAppointment ? (
+              <>
+                <div style={styles.itemTitle}>{nextAppointment.title}</div>
+                <div style={styles.itemSub}>
+                  {nextAppointment.appt_date} at {nextAppointment.appt_time}
+                </div>
+              </>
+            ) : (
+              <EmptyRow icon={<Calendar size={16} color="#4d5a51" />} title="No upcoming appointments" />
+            )}
+          </WaypointItem>
+
+          <WaypointItem markerColor="#7C9885" href="/medications">
+            {activeMeds.length > 0 ? (
+              <>
+                <div style={styles.itemTitle}>
                   {activeMeds.length} active medication
                   {activeMeds.length !== 1 ? "s" : ""}
                 </div>
-
-                <div style={styles.diagnosisLine}>
+                <div style={styles.itemSub}>
                   {activeMeds
                     .slice(0, 2)
                     .map((m) => m.name)
                     .join(", ")}
-                  {activeMeds.length > 2
-                    ? `, +${activeMeds.length - 2} more`
-                    : ""}
+                  {activeMeds.length > 2 ? `, +${activeMeds.length - 2} more` : ""}
                 </div>
-              </div>
-            </div>
-          </a>
-        ) : (
-          <EmptyCard
-            icon={<Pill size={16} />}
-            title="No medications tracked yet"
-            href="/medications"
-          />
-        )}
+              </>
+            ) : (
+              <EmptyRow icon={<Pill size={16} color="#4d5a51" />} title="No medications tracked yet" />
+            )}
+          </WaypointItem>
 
-        <EmptyCard
-          icon={<Star size={16} />}
-          title="No applications in progress"
-          href="/application-tracker"
-        />
+          <WaypointItem markerColor="#7C9885" href="/application-tracker">
+            <EmptyRow icon={<Star size={16} color="#4d5a51" />} title="No applications in progress" />
+          </WaypointItem>
 
-        <a
-          href="/care-circle"
-          style={{
-            ...styles.card,
-            textDecoration: "none",
-            display: "block",
-          }}
-        >
-          <div style={styles.cardRow}>
-            <div
-              style={{
-                ...styles.iconBox,
-                background: "#FBEAF0",
-                color: "#993556",
-              }}
-            >
-              <Heart size={16} />
-            </div>
-
-            <div style={{ flex: 1 }}>
-              <div style={styles.cardTitle}>
-                {careCircle.memberCount > 0
-                  ? `Care Circle · ${careCircle.memberCount} member${
-                      careCircle.memberCount !== 1 ? "s" : ""
-                    }`
-                  : "Set up your Care Circle"}
-              </div>
-
-              {careCircle.lastUpdate ? (
-                <div style={styles.diagnosisLine}>
-                  Last update:{" "}
-                  {careCircle.lastUpdate.message.slice(0, 60)}
-                  {careCircle.lastUpdate.message.length > 60 ? "…" : ""}
-                </div>
-              ) : (
-                <div style={styles.diagnosisLine}>
+          <WaypointItem markerColor="#B86F4E" filled href="/care-circle">
+            <div style={styles.itemRow}>
+              <Heart size={16} color="#FAF6F0" />
+              <div style={{ flex: 1 }}>
+                <div style={styles.itemTitle}>
                   {careCircle.memberCount > 0
+                    ? `Care Circle · ${careCircle.memberCount} member${
+                        careCircle.memberCount !== 1 ? "s" : ""
+                      }`
+                    : "Set up your Care Circle"}
+                </div>
+                <div style={styles.itemSub}>
+                  {careCircle.lastUpdate
+                    ? `Last update: ${careCircle.lastUpdate.message.slice(0, 60)}${
+                        careCircle.lastUpdate.message.length > 60 ? "…" : ""
+                      }`
+                    : careCircle.memberCount > 0
                     ? "Send an update to your circle"
                     : "Invite loved ones to stay informed"}
                 </div>
-              )}
+              </div>
             </div>
-          </div>
-        </a>
+          </WaypointItem>
 
-        <div style={styles.card}>
-          <div style={styles.cardRow}>
-            <div style={styles.iconBox}>
-              <FileText size={16} />
+          <WaypointItem markerColor="#2B4339" filled isLast>
+            <div style={styles.itemRow}>
+              <FileText size={16} color="#FAF6F0" />
+              <div style={styles.itemTitle}>Ask your oncologist</div>
             </div>
-
-            <div style={styles.cardTitle}>Ask your oncologist</div>
-          </div>
-
-          <ul style={styles.qList}>
-            {questions.map(function (q) {
-              return <li key={q}>{q}</li>;
-            })}
-          </ul>
+            <ul style={styles.qList}>
+              {questions.map(function (q) {
+                return <li key={q}>{q}</li>;
+              })}
+            </ul>
+          </WaypointItem>
         </div>
       </div>
     </main>
   );
 }
 
-function EmptyCard({ icon, title, href }) {
+function WaypointItem({ children, markerColor, filled, href, onClick, isLast }) {
+  const marker = filled ? (
+    <div style={{ ...styles.markerFilled, background: markerColor, borderColor: markerColor }} />
+  ) : (
+    <div style={{ ...styles.markerRing, borderColor: markerColor }}>
+      <div style={{ ...styles.markerDot, background: markerColor }} />
+    </div>
+  );
+
+  const content = (
+    <div style={{ ...styles.item, paddingBottom: isLast ? 0 : "26px" }}>
+      <div style={styles.marker}>{marker}</div>
+      {children}
+    </div>
+  );
+
+  if (href) {
+    return (
+      <a href={href} style={styles.itemLink} onClick={onClick}>
+        {content}
+      </a>
+    );
+  }
+
   return (
-    <a
-      href={href}
-      style={{
-        ...styles.card,
-        ...styles.emptyCard,
-        textDecoration: "none",
-      }}
-    >
-      <div style={styles.cardRow}>
-        <div style={styles.iconBox}>{icon}</div>
-        <div style={{ flex: 1, color: "#6E726A" }}>{title}</div>
-        <Plus size={16} color="#9A9A90" />
-      </div>
-    </a>
+    <div style={{ cursor: onClick ? "pointer" : "default" }} onClick={onClick}>
+      {content}
+    </div>
+  );
+}
+
+function EmptyRow({ icon, title }) {
+  return (
+    <div style={styles.itemRow}>
+      {icon}
+      <div style={{ flex: 1, color: "#6E726A" }}>{title}</div>
+      <Plus size={16} color="#9A9A90" />
+    </div>
   );
 }
 
@@ -444,72 +417,146 @@ const styles = {
   wrap: {
     maxWidth: "700px",
     margin: "0 auto",
-    padding: "18px 18px 0",
-    fontFamily: "'Public Sans', -apple-system, sans-serif",
+    padding: "24px 20px 0",
+    fontFamily: "var(--font-work-sans), -apple-system, sans-serif",
+    position: "relative",
+  },
+
+  topline: {
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+    position: "relative",
+  },
+
+  markCircle: {
+    width: "22px",
+    height: "22px",
+    borderRadius: "50%",
+    background: "#2B4339",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
+
+  eyebrow: {
+    fontFamily: "var(--font-plex-mono), monospace",
+    fontSize: "11px",
+    letterSpacing: "0.08em",
+    textTransform: "uppercase",
+    color: "#7C9885",
+  },
+
+  contours: {
+    position: "absolute",
+    top: "-6px",
+    right: "-10px",
+    opacity: 0.35,
+    pointerEvents: "none",
   },
 
   greetingRow: {
-    marginBottom: "18px",
+    marginTop: "16px",
+    marginBottom: "26px",
+    position: "relative",
   },
 
   greeting: {
-    fontSize: "19px",
-    fontWeight: 700,
-    color: "#262E2A",
+    fontFamily: "var(--font-fraunces), serif",
+    fontWeight: 500,
+    fontSize: "26px",
+    color: "#2A2622",
   },
 
   diagnosisLine: {
     fontSize: "13px",
     color: "#6E726A",
-    marginTop: "3px",
+    marginTop: "4px",
   },
 
-  sectionLabel: {
-    fontSize: "12px",
-    fontWeight: 700,
-    letterSpacing: "0.06em",
-    textTransform: "uppercase",
-    color: "#9A9A90",
-    marginBottom: "8px",
+  pathSubtitle: {
+    fontSize: "14px",
+    color: "#5f6d63",
+    marginTop: "10px",
   },
 
-  card: {
-    background: "#FFFFFF",
-    border: "1px solid #E3ECE7",
-    borderRadius: "16px",
-    padding: "16px",
-    marginBottom: "12px",
+  inlineLink: {
+    color: "#3F628F",
+    fontWeight: 600,
+    textDecoration: "none",
+  },
+
+  path: {
+    position: "relative",
+    paddingLeft: "30px",
+  },
+
+  pathLine: {
+    position: "absolute",
+    left: "9px",
+    top: "8px",
+    bottom: "8px",
+    width: "1px",
+    background: "#C9A227",
+    opacity: 0.3,
+  },
+
+  item: {
+    position: "relative",
+  },
+
+  itemLink: {
     display: "block",
-    cursor: "pointer",
-    boxShadow: "0 4px 14px rgba(44, 95, 85, 0.05)",
+    textDecoration: "none",
   },
 
-  emptyCard: {
-    cursor: "pointer",
+  marker: {
+    position: "absolute",
+    left: "-30px",
+    top: "1px",
   },
 
-  cardRow: {
+  markerRing: {
+    width: "19px",
+    height: "19px",
+    borderRadius: "50%",
+    background: "#F7FAF8",
+    border: "2px solid",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  markerDot: {
+    width: "6px",
+    height: "6px",
+    borderRadius: "50%",
+  },
+
+  markerFilled: {
+    width: "19px",
+    height: "19px",
+    borderRadius: "50%",
+    border: "2px solid",
+  },
+
+  itemRow: {
     display: "flex",
     alignItems: "center",
     gap: "10px",
   },
 
-  iconBox: {
-    width: "32px",
-    height: "32px",
-    borderRadius: "9px",
-    background: "#EDF5F1",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    color: "#2C5F55",
-    flexShrink: 0,
+  itemTitle: {
+    fontSize: "14.5px",
+    fontWeight: 500,
+    color: "#2A2622",
   },
 
-  cardTitle: {
-    fontSize: "13.5px",
-    fontWeight: 600,
-    color: "#262E2A",
+  itemSub: {
+    fontSize: "12.5px",
+    color: "#8a8478",
+    marginTop: "2px",
   },
 
   viewLink: {
@@ -522,10 +569,10 @@ const styles = {
   },
 
   qList: {
-    margin: "8px 0 0 42px",
+    margin: "10px 0 0 26px",
     padding: 0,
     fontSize: "13px",
-    color: "#444",
+    color: "#5f6d63",
     lineHeight: 1.7,
   },
 };

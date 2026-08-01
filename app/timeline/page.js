@@ -15,7 +15,7 @@ export default function TimelinePage() {
   }, []);
 
   async function loadTimeline() {
-    const sessionId = getOrCreateSessionId();
+    const sessionId = await getOrCreateSessionId();
 
     const [diagRes, bioRes, txRes, docRes, extractedRes] = await Promise.all([
       supabase.from("diagnosis_events").select("*").eq("session_id", sessionId),

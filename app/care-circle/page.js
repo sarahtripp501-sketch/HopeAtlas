@@ -86,7 +86,7 @@ export default function CareCirclePage() {
   }, []);
 
   async function loadAll() {
-    const sessionId = getOrCreateSessionId();
+    const sessionId = await getOrCreateSessionId();
     const today = new Date().toISOString().slice(0, 10);
 
     const [mRes, tRes, uRes, wRes, apptRes, medRes] = await Promise.all([
@@ -162,7 +162,7 @@ export default function CareCirclePage() {
 
   async function handleSaveMember() {
     if (!name) return;
-    const sessionId = getOrCreateSessionId();
+    const sessionId = await getOrCreateSessionId();
 
     if (editingId) {
       const { error } = await supabase
@@ -193,7 +193,7 @@ export default function CareCirclePage() {
   async function handleDeleteMember(id) {
     const confirmed = window.confirm("Remove this person from your care circle?");
     if (!confirmed) return;
-    const sessionId = getOrCreateSessionId();
+    const sessionId = await getOrCreateSessionId();
     await supabase.from("care_circle_members").delete().eq("id", id).eq("session_id", sessionId);
     await loadAll();
   }
@@ -201,12 +201,12 @@ export default function CareCirclePage() {
   async function handleRevokeMember(id) {
     const confirmed = window.confirm("Revoke this person's access immediately? They won't be able to view their link anymore.");
     if (!confirmed) return;
-    const sessionId = getOrCreateSessionId();
+    const sessionId = await getOrCreateSessionId();
     await supabase.from("care_circle_members").update({ revoked: true }).eq("id", id).eq("session_id", sessionId);
     await loadAll();
   }
   async function handleRestoreMember(id) {
-    const sessionId = getOrCreateSessionId();
+    const sessionId = await getOrCreateSessionId();
     await supabase.from("care_circle_members").update({ revoked: false }).eq("id", id).eq("session_id", sessionId);
     await loadAll();
   }
@@ -220,7 +220,7 @@ export default function CareCirclePage() {
 
   // --- Tasks ---
   async function createTask(title) {
-    const sessionId = getOrCreateSessionId();
+    const sessionId = await getOrCreateSessionId();
     const { error } = await supabase.from("care_tasks").insert({
       session_id: sessionId,
       title,
@@ -237,7 +237,7 @@ export default function CareCirclePage() {
     const claimerName = window.prompt("Who's claiming this task?");
     if (!claimerName) return;
 
-    const sessionId = getOrCreateSessionId();
+    const sessionId = await getOrCreateSessionId();
     await supabase
       .from("care_tasks")
       .update({ status: "claimed", claimed_by: claimerName })
@@ -247,7 +247,7 @@ export default function CareCirclePage() {
   }
 
   async function completeTask(task) {
-    const sessionId = getOrCreateSessionId();
+    const sessionId = await getOrCreateSessionId();
     await supabase.from("care_tasks").update({ status: "done" }).eq("id", task.id).eq("session_id", sessionId);
     await loadAll();
   }
@@ -255,7 +255,7 @@ export default function CareCirclePage() {
   async function deleteTask(id) {
     const confirmed = window.confirm("Delete this task?");
     if (!confirmed) return;
-    const sessionId = getOrCreateSessionId();
+    const sessionId = await getOrCreateSessionId();
     await supabase.from("care_tasks").delete().eq("id", id).eq("session_id", sessionId);
     await loadAll();
   }
@@ -263,7 +263,7 @@ export default function CareCirclePage() {
   // --- Updates ---
   async function handleSendUpdate(text, category) {
     if (!text.trim()) return;
-    const sessionId = getOrCreateSessionId();
+    const sessionId = await getOrCreateSessionId();
     const { error } = await supabase.from("care_updates").insert({
       session_id: sessionId,
       message: text,
@@ -294,7 +294,7 @@ export default function CareCirclePage() {
 async function handleDeleteWallMessage(id) {
     const confirmed = window.confirm("Delete this message?");
     if (!confirmed) return;
-    const sessionId = getOrCreateSessionId();
+    const sessionId = await getOrCreateSessionId();
     await supabase.from("support_wall_messages").delete().eq("id", id).eq("session_id", sessionId);
     await loadAll();
   }
@@ -332,6 +332,7 @@ async function handleDeleteWallMessage(id) {
   return (
     <div style={styles.page}>
       <div style={styles.headerBlock}>
+        <span style={styles.eyebrow}>Care Circle</span>
         <h1 style={styles.heading}>❤️ Your Care Circle</h1>
         <p style={styles.subheading}>Coordinate care with the people you trust.</p>
       </div>
@@ -662,7 +663,7 @@ function SubView({ view, onBack, tasks, updates, onClaimTask, onCompleteTask, on
   }, [view]);
 
   async function loadNotes() {
-    const sessionId = getOrCreateSessionId();
+    const sessionId = await getOrCreateSessionId();
     const { data } = await supabase
       .from("care_notes")
       .select("*")
@@ -672,7 +673,7 @@ function SubView({ view, onBack, tasks, updates, onClaimTask, onCompleteTask, on
   }
 
   async function saveNotes() {
-    const sessionId = getOrCreateSessionId();
+    const sessionId = await getOrCreateSessionId();
     await supabase
       .from("care_notes")
       .upsert({ session_id: sessionId, content: notes }, { onConflict: "session_id" });
@@ -778,67 +779,99 @@ function SubView({ view, onBack, tasks, updates, onClaimTask, onCompleteTask, on
 }
 
 const styles = {
-  page: { padding: "16px", paddingBottom: "80px", maxWidth: "600px", margin: "0 auto" },
-  headerBlock: { marginBottom: "14px" },
-  heading: { fontSize: "20px", fontWeight: 700 },
-  subheading: { fontSize: "13px", color: "#6E726A", marginTop: "4px" },
-  backButton: { background: "none", border: "none", color: "#3F628F", fontWeight: 600, fontSize: "13px", cursor: "pointer", padding: 0, marginBottom: "16px" },
+  page: {
+    minHeight: "100vh",
+    background: "#F7E6DE",
+    padding: "16px",
+    paddingBottom: "80px",
+    maxWidth: "600px",
+    margin: "0 auto",
+    fontFamily: "var(--font-work-sans), -apple-system, sans-serif",
+  },
+  headerBlock: { marginBottom: "18px" },
+  eyebrow: {
+    fontFamily: "var(--font-plex-mono), monospace",
+    fontSize: "11px",
+    letterSpacing: "0.08em",
+    textTransform: "uppercase",
+    color: "#7C9885",
+  },
+  heading: {
+    fontFamily: "var(--font-fraunces), serif",
+    fontWeight: 500,
+    fontSize: "24px",
+    color: "#2A2622",
+    margin: "6px 0 0",
+  },
+  subheading: { fontSize: "14px", color: "#5f6d63", marginTop: "6px" },
+  backButton: {
+    background: "none",
+    border: "none",
+    color: "#2B4339",
+    fontWeight: 600,
+    fontSize: "13px",
+    cursor: "pointer",
+    padding: 0,
+    marginBottom: "16px",
+  },
   sectionRow: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" },
   sectionLabel: {
-    fontSize: "12px",
-    fontWeight: 700,
-    letterSpacing: "0.05em",
+    fontFamily: "var(--font-plex-mono), monospace",
+    fontSize: "11px",
+    letterSpacing: "0.06em",
     textTransform: "uppercase",
-    color: "#9A9A90",
+    color: "#7C9885",
   },
   addButton: {
-    background: "#FCFBF8",
-    border: "1px solid #E1DDD2",
+    background: "#FFFFFF",
+    border: "1px solid #EAD0C4",
     borderRadius: "8px",
     padding: "6px 10px",
     cursor: "pointer",
+    color: "#2B4339",
   },
-  empty: { color: "#999", fontSize: "14px", textAlign: "center", marginTop: "20px" },
+  empty: { color: "#9a9488", fontSize: "14px", textAlign: "center", marginTop: "20px" },
   peopleGroup: { marginBottom: "14px" },
   peopleGroupLabel: {
     display: "flex",
     alignItems: "center",
     fontSize: "12px",
-    fontWeight: 700,
-    color: "#6E726A",
+    fontWeight: 600,
+    color: "#5f6d63",
     marginBottom: "6px",
   },
   list: { display: "flex", flexDirection: "column", gap: "8px" },
   memberCard: {
-    border: "1px solid #E1DDD2",
+    border: "1px solid #EAD0C4",
     borderRadius: "10px",
     padding: "10px 12px",
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
-    background: "#FCFBF8",
+    background: "#FFFFFF",
   },
   wallCard: {
-    border: "1px solid #E1DDD2",
+    border: "1px solid #EAD0C4",
     borderRadius: "10px",
     padding: "12px 14px",
-    background: "#FCFBF8",
+    background: "#FFFFFF",
   },
-  cardTitle: { fontSize: "13.5px", fontWeight: 600 },
-  cardSubtitle: { fontSize: "12px", color: "#6E726A", marginTop: "2px" },
-  cardMeta: { fontSize: "11px", color: "#9A9A90", marginTop: "4px" },
+  cardTitle: { fontSize: "13.5px", fontWeight: 600, color: "#2A2622" },
+  cardSubtitle: { fontSize: "12px", color: "#5f6d63", marginTop: "2px" },
+  cardMeta: { fontSize: "11px", color: "#9a9488", marginTop: "4px" },
   cardActions: { display: "flex", gap: "6px", flexShrink: 0 },
   iconButton: {
-    background: "#fff",
-    border: "1px solid #E1DDD2",
+    background: "#FFFFFF",
+    border: "1px solid #EAD0C4",
     borderRadius: "6px",
     padding: "5px 7px",
     cursor: "pointer",
+    color: "#5f6d63",
   },
   revokeButton: {
-    background: "#fff",
-    border: "1px solid #E24B4A",
-    color: "#A32D2D",
+    background: "#FFFFFF",
+    border: "1px solid #B86F4E",
+    color: "#8a4c33",
     borderRadius: "6px",
     padding: "5px 8px",
     fontSize: "11.5px",
@@ -846,9 +879,9 @@ const styles = {
     cursor: "pointer",
   },
   restoreButton: {
-    background: "#fff",
-    border: "1px solid #1D9E75",
-    color: "#0F6E56",
+    background: "#FFFFFF",
+    border: "1px solid #2B4339",
+    color: "#2B4339",
     borderRadius: "6px",
     padding: "5px 8px",
     fontSize: "11.5px",
@@ -856,27 +889,28 @@ const styles = {
     cursor: "pointer",
   },
   todayCard: {
-    background: "#FCFBF8",
-    border: "1px solid #E1DDD2",
+    background: "#FFFFFF",
+    border: "1px solid #EAD0C4",
     borderRadius: "12px",
     padding: "14px",
   },
-  todayRow: { display: "flex", alignItems: "center", fontSize: "13px", marginBottom: "8px" },
-  todayDot: { width: "6px", height: "6px", borderRadius: "50%", background: "#D4537E", marginRight: "8px", flexShrink: 0 },
+  todayRow: { display: "flex", alignItems: "center", fontSize: "13px", marginBottom: "8px", color: "#2A2622" },
+  todayDot: { width: "6px", height: "6px", borderRadius: "50%", background: "#C9A227", marginRight: "8px", flexShrink: 0 },
   askGrid: { display: "flex", flexWrap: "wrap", gap: "8px" },
   askChip: {
-    background: "#FCFBF8",
-    border: "1px solid #E1DDD2",
+    background: "#FFFFFF",
+    border: "1px solid #EAD0C4",
     borderRadius: "20px",
     padding: "8px 12px",
     fontSize: "12.5px",
     fontWeight: 600,
     cursor: "pointer",
+    color: "#2A2622",
   },
   askChipCustom: {
-    background: "#111",
-    color: "#fff",
-    border: "1px solid #111",
+    background: "#2B4339",
+    color: "#FAF6F0",
+    border: "1px solid #2B4339",
     borderRadius: "20px",
     padding: "8px 12px",
     fontSize: "12.5px",
@@ -888,12 +922,13 @@ const styles = {
     alignItems: "center",
     gap: "10px",
     padding: "10px 0",
-    borderBottom: "1px solid #E1DDD2",
+    borderBottom: "1px solid #EAD0C4",
     fontSize: "13px",
+    color: "#2A2622",
   },
   taskButton: {
-    background: "#111",
-    color: "#fff",
+    background: "#2B4339",
+    color: "#FAF6F0",
     border: "none",
     borderRadius: "6px",
     padding: "5px 10px",
@@ -901,7 +936,7 @@ const styles = {
     fontWeight: 600,
     cursor: "pointer",
   },
-  claimedBy: { color: "#9A9A90", fontSize: "12px" },
+  claimedBy: { color: "#9a9488", fontSize: "12px" },
   toolsGrid: {
     display: "grid",
     gridTemplateColumns: "repeat(3, 1fr)",
@@ -912,39 +947,40 @@ const styles = {
     flexDirection: "column",
     alignItems: "center",
     gap: "6px",
-    background: "#FCFBF8",
-    border: "1px solid #E1DDD2",
+    background: "#FFFFFF",
+    border: "1px solid #EAD0C4",
     borderRadius: "12px",
     padding: "14px 8px",
     textDecoration: "none",
-    color: "#262E2A",
+    color: "#2B4339",
     fontSize: "12px",
     fontWeight: 600,
     cursor: "pointer",
   },
   card: {
-    border: "1px solid #E1DDD2",
+    border: "1px solid #EAD0C4",
     borderRadius: "10px",
     padding: "12px 14px",
     display: "flex",
     alignItems: "center",
     gap: "10px",
-    background: "#FCFBF8",
+    background: "#FFFFFF",
   },
   templateGrid: { display: "flex", flexWrap: "wrap", gap: "8px" },
   templateChip: {
-    background: "#FCFBF8",
-    border: "1px solid #E1DDD2",
+    background: "#FFFFFF",
+    border: "1px solid #EAD0C4",
     borderRadius: "20px",
     padding: "7px 12px",
     fontSize: "12.5px",
     fontWeight: 600,
     cursor: "pointer",
+    color: "#2A2622",
   },
   formOverlay: {
     position: "fixed",
     inset: 0,
-    background: "rgba(0,0,0,0.4)",
+    background: "rgba(42,38,34,0.45)",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
@@ -952,7 +988,7 @@ const styles = {
     padding: "20px",
   },
   formCard: {
-    background: "#fff",
+    background: "#F7E6DE",
     borderRadius: "12px",
     padding: "20px",
     width: "100%",
@@ -961,26 +997,41 @@ const styles = {
     overflowY: "auto",
   },
   formHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" },
-  formTitle: { fontWeight: 700, fontSize: "16px" },
-  closeButton: { background: "none", border: "none", cursor: "pointer" },
-  permLabel: { fontSize: "12px", fontWeight: 700, color: "#9A9A90", margin: "10px 0 6px", display: "block" },
-  checkboxRow: { display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", marginBottom: "8px" },
+  formTitle: {
+    fontFamily: "var(--font-fraunces), serif",
+    fontWeight: 500,
+    fontSize: "18px",
+    color: "#2A2622",
+  },
+  closeButton: { background: "none", border: "none", cursor: "pointer", color: "#5f6d63" },
+  permLabel: {
+    fontFamily: "var(--font-plex-mono), monospace",
+    fontSize: "11px",
+    letterSpacing: "0.04em",
+    textTransform: "uppercase",
+    color: "#7C9885",
+    margin: "10px 0 6px",
+    display: "block",
+  },
+  checkboxRow: { display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", marginBottom: "8px", color: "#2A2622" },
   input: {
     width: "100%",
     padding: "10px",
     marginBottom: "10px",
     borderRadius: "8px",
-    border: "1px solid #E1DDD2",
+    border: "1px solid #EAD0C4",
     fontSize: "14px",
     fontFamily: "inherit",
+    background: "#FFFFFF",
+    color: "#2A2622",
   },
   saveButton: {
     width: "100%",
     padding: "10px",
     borderRadius: "8px",
     border: "none",
-    background: "#111",
-    color: "#fff",
+    background: "#2B4339",
+    color: "#FAF6F0",
     fontWeight: 600,
     cursor: "pointer",
   },

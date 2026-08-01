@@ -20,7 +20,7 @@ export default function AppointmentsPage() {
   }, []);
 
   async function loadAppointments() {
-    const sessionId = getOrCreateSessionId();
+    const sessionId = await getOrCreateSessionId();
     const { data, error } = await supabase
       .from("appointments")
       .select("*")
@@ -55,7 +55,7 @@ export default function AppointmentsPage() {
   async function handleSave() {
     if (!title || !date || !time) return;
 
-    const sessionId = getOrCreateSessionId();
+    const sessionId = await getOrCreateSessionId();
 
     if (editingId) {
       const { error } = await supabase
