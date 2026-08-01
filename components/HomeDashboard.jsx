@@ -167,7 +167,7 @@ export default function HomeDashboard() {
           <div style={styles.markCircle}>
             <Map size={12} color="#FAF6F0" />
           </div>
-          <span style={styles.eyebrow}>Hope Atlas</span>
+          <span style={styles.eyebrow}>HopeAtlas</span>
         </div>
 
         {/* faint contour-line watermark, purely decorative */}

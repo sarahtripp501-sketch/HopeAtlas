@@ -2,7 +2,7 @@ export default function PrivacyPolicyPage() {
   return (
     <div style={styles.page}>
       <h1 style={styles.heading}>Privacy Policy</h1>
-      <p style={styles.updated}>Last updated: July 25, 2026</p>
+      <p style={styles.updated}>Last updated: August 1, 2026</p>
 
       <p style={styles.text}>
         Hope Atlas ("we," "our," or "the app") helps people navigate a cancer diagnosis by
@@ -15,15 +15,16 @@ export default function PrivacyPolicyPage() {
         <h2 style={styles.subheading}>1. Information we collect</h2>
         <p style={styles.text}>
           Hope Atlas does not require an account or login. Instead, each person is identified
-          by a private session ID generated and stored on their own device. Depending on how
-          you use the app, this session may be associated with:
+          by a private, anonymous session generated and stored on their own device. Depending on
+          how you use the app, this session may be associated with:
         </p>
         <ul style={styles.list}>
-          <li style={styles.listItem}>Profile details you enter (diagnosis, stage, biomarkers, insurance, location, treatments)</li>
+          <li style={styles.listItem}>Profile details you enter (name, email, phone number, diagnosis, stage, grade, biomarkers, genetic variants, age, insurance, income, ZIP code, current and past treatment)</li>
           <li style={styles.listItem}>Appointments, medications, and diagnosis history you add</li>
-          <li style={styles.listItem}>Documents you upload (such as pathology reports, scans, or lab results)</li>
+          <li style={styles.listItem}>Documents you upload (such as pathology reports, scans, or lab results), along with AI-generated plain-language explanations of their contents</li>
           <li style={styles.listItem}>Care Circle members you invite and the permissions you assign them</li>
           <li style={styles.listItem}>Updates and messages posted within Care Circle</li>
+          <li style={styles.listItem}>Notification preferences (whether you've opted into email and/or text notifications)</li>
           <li style={styles.listItem}>Feedback, ratings, and issue reports you submit</li>
         </ul>
       </div>
@@ -41,6 +42,17 @@ export default function PrivacyPolicyPage() {
           answers to your questions). This information is processed to generate a response and
           is not used by us to train AI models.
         </p>
+        <p style={styles.text}>
+          If you opt into email notifications, we use Resend, a third-party email delivery
+          service, to send Care Circle updates, appointment reminders, and alerts about new
+          trial, grant, or resource matches to the email address you provide.
+        </p>
+        <p style={styles.text}>
+          If you opt into text notifications and provide a phone number, we use Twilio, a
+          third-party messaging service, to send the same types of alerts via SMS. Standard
+          message and data rates from your mobile carrier may apply. You can opt out of text
+          notifications at any time from Alerts & Notifications in the app.
+        </p>
       </div>
 
       <div style={styles.section}>
@@ -56,14 +68,16 @@ export default function PrivacyPolicyPage() {
       <div style={styles.section}>
         <h2 style={styles.subheading}>4. Data storage and security</h2>
         <p style={styles.text}>
-          Data is stored using Supabase, a third-party database provider. We take reasonable
-          measures to protect this information, but no method of electronic storage is
-          completely secure, and we cannot guarantee absolute security.
+          Data is stored using Supabase, a third-party database and file storage provider. We
+          take reasonable measures to protect this information, including database-level access
+          controls that restrict each session to its own data, but no method of electronic
+          storage is completely secure, and we cannot guarantee absolute security.
         </p>
         <p style={styles.text}>
-          Because there is no login system, your data is tied to your device's session. If you
-          clear your browser data, switch devices, or reinstall the app, you may lose access to
-          previously entered information unless you've exported it.
+          Because there is no login system, your data is tied to your device's browser session,
+          which is stored using your browser's local storage. If you clear your browser data,
+          switch devices or browsers, or reinstall the app, you may lose access to previously
+          entered information unless you've exported it.
         </p>
       </div>
 
@@ -73,6 +87,10 @@ export default function PrivacyPolicyPage() {
           You can export a full copy of everything tied to your session at any time from
           Settings → Privacy & Data → Export My Data. You can also permanently delete everything
           tied to your session from the same page — this action cannot be undone.
+        </p>
+        <p style={styles.text}>
+          You can turn email and text notifications on or off at any time from Alerts &
+          Notifications in the app.
         </p>
       </div>
 
