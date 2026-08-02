@@ -127,24 +127,52 @@ export default function HomeDashboard() {
     });
 
     try {
-      const res = await fetch("/api/personalized-match", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          cancerType: (profile && profile.diagnosis) || "",
-          stage: (profile && profile.stage) || "",
-          age: (profile && profile.age) || "",
-          insurance: (profile && profile.insurance) || "",
-          zip: (profile && profile.zip_code) || "",
-        }),
-      });
+      const sessionId = await getOrCreateSessionId();
 
-      const data = await res.json();
+      // Pull the same extra profile info the Clinical Trials page uses, so
+      // trial-match gets identical inputs here and there — otherwise even
+      // calling the same endpoint could still return different results.
+      const [bioRes, txRes] = await Promise.all([
+        supabase.from("biomarkers").select("name, status").eq("session_id", sessionId),
+        supabase.from("treatments").select("name").eq("session_id", sessionId),
+      ]);
+
+      const biomarkersList = (bioRes.data || []).map((b) => `${b.name}: ${b.status}`);
+      const previousTreatments = (txRes.data || []).map((t) => t.name);
+
+      const [matchData, trialData] = await Promise.all([
+        fetch("/api/personalized-match", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            cancerType: (profile && profile.diagnosis) || "",
+            stage: (profile && profile.stage) || "",
+            age: (profile && profile.age) || "",
+            insurance: (profile && profile.insurance) || "",
+            zip: (profile && profile.zip_code) || "",
+          }),
+        }).then((r) => r.json()),
+        // Same endpoint, same shape of params the Clinical Trials page's own
+        // "Matches" tab sends — this is now the single source of truth for
+        // trial counts anywhere in the app, instead of a second, looser guess.
+        fetch("/api/trial-match", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            cancerType: (profile && profile.diagnosis) || "",
+            stage: (profile && profile.stage) || "",
+            biomarkers: biomarkersList,
+            currentTreatment: (profile && profile.current_treatment) || "",
+            previousTreatments,
+            zip: (profile && profile.zip_code) || "",
+          }),
+        }).then((r) => r.json()),
+      ]);
 
       setMatchState({
         status: "done",
-        trialCount: (data.clinical_trials || []).length,
-        grantCount: (data.grants || []).length,
+        trialCount: (trialData.trials || []).length,
+        grantCount: (matchData.grants || []).length,
       });
     } catch {
       setMatchState({
@@ -279,9 +307,14 @@ export default function HomeDashboard() {
             </div>
 
             {matchState.status === "done" && (
-              <a href="/discover" style={styles.viewLink}>
-                See full results in Discover →
-              </a>
+              <div style={{ display: "flex", gap: "14px", marginTop: "10px" }}>
+                <a href="/clinical-trials" style={styles.viewLink}>
+                  View trials →
+                </a>
+                <a href="/financial-assistance" style={styles.viewLink}>
+                  View financial assistance →
+                </a>
+              </div>
             )}
           </WaypointItem>
 
