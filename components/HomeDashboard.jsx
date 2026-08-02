@@ -12,6 +12,7 @@ import {
   Plus,
   Heart,
   Map,
+  X,
 } from "lucide-react";
 import { getOrCreateSessionId, getProfile, getAccessToken, supabase } from "../lib/supabase";
 
@@ -36,6 +37,20 @@ function buildQuestions(profile) {
 
 export default function HomeDashboard() {
   const [profile, setProfile] = useState(null);
+  const [showWelcome, setShowWelcome] = useState(false);
+
+  useEffect(function () {
+    if (typeof window !== "undefined" && !localStorage.getItem("hopeatlas_welcome_dismissed")) {
+      setShowWelcome(true);
+    }
+  }, []);
+
+  function dismissWelcome() {
+    setShowWelcome(false);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("hopeatlas_welcome_dismissed", "true");
+    }
+  }
   const [loaded, setLoaded] = useState(false);
   const [matchState, setMatchState] = useState({
     status: "idle",
@@ -200,6 +215,34 @@ export default function HomeDashboard() {
 
   return (
     <main style={styles.page}>
+      {showWelcome && (
+        <div style={styles.welcomeOverlay}>
+          <div style={styles.welcomeCard}>
+            <button style={styles.welcomeClose} onClick={dismissWelcome} aria-label="Close">
+              <X size={18} />
+            </button>
+            <div style={styles.welcomeMark}>
+              <Map size={16} color="#FAF6F0" />
+            </div>
+            <h2 style={styles.welcomeHeading}>Welcome to HopeAtlas</h2>
+            <p style={styles.welcomeText}>
+              We built this to help you navigate a cancer diagnosis with a little more clarity
+              and a little less alone. Start by creating your profile — it only takes a
+              minute — so we can find clinical trials, financial assistance, and support
+              tailored to your situation. Or jump straight into Resources to see what's out
+              there right now.
+            </p>
+            <div style={styles.welcomeButtonRow}>
+              <a href="/profile" style={styles.welcomePrimaryButton} onClick={dismissWelcome}>
+                Create my profile
+              </a>
+              <a href="/resources" style={styles.welcomeSecondaryButton} onClick={dismissWelcome}>
+                Explore resources
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
       <div style={styles.wrap}>
         <div style={styles.topline}>
           <div style={styles.markCircle}>
@@ -451,6 +494,84 @@ function EmptyRow({ icon, title }) {
 }
 
 const styles = {
+  welcomeOverlay: {
+    position: "fixed",
+    inset: 0,
+    background: "rgba(42,38,34,0.5)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 100,
+    padding: "20px",
+  },
+  welcomeCard: {
+    position: "relative",
+    background: "#FAF6F0",
+    borderRadius: "16px",
+    padding: "28px 24px 24px",
+    width: "100%",
+    maxWidth: "380px",
+    textAlign: "center",
+  },
+  welcomeClose: {
+    position: "absolute",
+    top: "14px",
+    right: "14px",
+    background: "none",
+    border: "none",
+    cursor: "pointer",
+    color: "#9a9488",
+    padding: "4px",
+  },
+  welcomeMark: {
+    width: "36px",
+    height: "36px",
+    borderRadius: "50%",
+    background: "#2B4339",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    margin: "0 auto 14px",
+  },
+  welcomeHeading: {
+    fontFamily: "var(--font-fraunces), serif",
+    fontWeight: 500,
+    fontSize: "22px",
+    color: "#2A2622",
+    margin: "0 0 12px",
+  },
+  welcomeText: {
+    fontSize: "14px",
+    color: "#5f6d63",
+    lineHeight: 1.6,
+    margin: "0 0 22px",
+  },
+  welcomeButtonRow: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "10px",
+  },
+  welcomePrimaryButton: {
+    display: "block",
+    padding: "12px",
+    borderRadius: "9px",
+    background: "#2B4339",
+    color: "#FAF6F0",
+    fontWeight: 600,
+    fontSize: "14px",
+    textDecoration: "none",
+  },
+  welcomeSecondaryButton: {
+    display: "block",
+    padding: "12px",
+    borderRadius: "9px",
+    background: "transparent",
+    border: "1px solid #E5DFD2",
+    color: "#2B4339",
+    fontWeight: 600,
+    fontSize: "14px",
+    textDecoration: "none",
+  },
   page: {
     minHeight: "100vh",
     background: "#F7FAF8",
