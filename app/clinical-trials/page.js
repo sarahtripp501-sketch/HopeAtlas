@@ -189,6 +189,10 @@ export default function ClinicalTrialsPage() {
   return (
     <div style={styles.page}>
       <h1 style={styles.heading}>🧪 Clinical Trials</h1>
+      <p style={styles.disclaimer}>
+        Match estimates and eligibility info are general guidance, not medical advice. Always
+        confirm eligibility directly with a trial's care team before making any decisions.
+      </p>
 
       <ReadinessCard readiness={readiness} matchCount={matches.length} />
 
@@ -458,6 +462,12 @@ function TrialCard({ trial, saved, onToggleSave }) {
 }
 
 const styles = {
+  disclaimer: {
+    fontSize: "12px",
+    color: "#9A9A90",
+    lineHeight: 1.5,
+    margin: "0 0 16px",
+  },
   refreshButton: {
     background: "#fff",
     border: "1px solid #E1DDD2",

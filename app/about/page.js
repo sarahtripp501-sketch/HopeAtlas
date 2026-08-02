@@ -24,6 +24,18 @@ export default function AboutPage() {
       </div>
 
       <div style={styles.section}>
+        <div style={styles.sectionLabel}>Not medical advice</div>
+        <p style={styles.text}>
+          Hope Atlas provides general educational information and organizational tools only. It
+          does not provide medical advice, diagnosis, or treatment recommendations, and nothing
+          in the app — including AI-generated explanations, clinical trial matches, or resource
+          suggestions — should be treated as a substitute for guidance from a qualified
+          healthcare provider. Always talk to your oncology team before making decisions about
+          your diagnosis, treatment, or care.
+        </p>
+      </div>
+
+      <div style={styles.section}>
         <div style={styles.sectionLabel}>Version</div>
         <p style={styles.text}>1.0.0</p>
       </div>
