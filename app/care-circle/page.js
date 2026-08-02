@@ -39,7 +39,13 @@ const RELATIONSHIP_GROUPS = [
 ];
 
 function randomToken() {
-  return Math.random().toString(36).slice(2) + Date.now().toString(36);
+  // Uses the browser's real cryptographic random generator (not Math.random(),
+  // which isn't designed to resist prediction) — this is the only credential
+  // gating access to a patient's Care Circle data, so it needs to be
+  // genuinely unguessable, not just "long enough by accident."
+  const bytes = new Uint8Array(24);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
 export default function CareCirclePage() {

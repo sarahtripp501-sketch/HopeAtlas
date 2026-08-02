@@ -157,6 +157,12 @@ export default function PrivacyPage() {
       </div>
 
       <p style={styles.footerLink}>
+        Read our full{" "}
+        <a href="/privacy-policy" style={styles.link}>Privacy Policy</a> and{" "}
+        <a href="/terms" style={styles.link}>Terms of Service</a>.
+      </p>
+
+      <p style={styles.footerLink}>
         See <a href="/connected-accounts" style={styles.link}>Connected Health Accounts</a> for third-party integrations.
       </p>
     </div>
