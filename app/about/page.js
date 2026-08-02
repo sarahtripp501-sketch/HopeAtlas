@@ -13,6 +13,14 @@ export default function AboutPage() {
           financial assistance, and support for loved ones into one place, so no one has to
           piece it all together alone.
         </p>
+        <p style={{ ...styles.text, marginTop: "14px" }}>
+          Hope Atlas exists because of my aunt. When she was diagnosed with stage 4
+          glioblastoma, our tight-knit family's group chat became flooded with questions no one
+          could answer — what a term in her latest scan meant, whether an update was good or
+          bad news, what to do next. We were trying to piece together her care from scattered
+          texts and half-remembered doctor visits, all while trying to be there for her. Hope
+          Atlas exists so no other family has to navigate a diagnosis that way.
+        </p>
       </div>
 
       <div style={styles.section}>
