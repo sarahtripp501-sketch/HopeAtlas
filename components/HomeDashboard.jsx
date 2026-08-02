@@ -205,7 +205,7 @@ export default function HomeDashboard() {
           <div style={styles.markCircle}>
             <Map size={12} color="#FAF6F0" />
           </div>
-          <span style={styles.eyebrow}>HopeAtlas</span>
+          <a href="/about" style={styles.eyebrow}>HopeAtlas</a>
         </div>
 
         {/* faint contour-line watermark, purely decorative */}
@@ -310,7 +310,7 @@ export default function HomeDashboard() {
                   </div>
                 ) : (
                   <div style={styles.itemSub}>
-                    Financial assistance matches will show here too - please check back after filling out annual income in your profile.
+                    Financial assistance matches will show here too
                   </div>
                 )}
               </div>
@@ -489,6 +489,7 @@ const styles = {
     letterSpacing: "0.08em",
     textTransform: "uppercase",
     color: "#7C9885",
+    textDecoration: "none",
   },
 
   contours: {
