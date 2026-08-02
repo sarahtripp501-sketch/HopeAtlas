@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Star, Search, ClipboardList, Bookmark, Sparkles, Check, X, Plus, Trash2 } from "lucide-react";
-import { supabase, getOrCreateSessionId, getProfile } from "../../lib/supabase";
+import { supabase, getOrCreateSessionId, getProfile, getAccessToken } from "../../lib/supabase";
 import ReportIssueButton from "../../components/ReportIssueButton";
 
 const STATUS_OPTIONS = [
@@ -40,7 +40,6 @@ export default function ClinicalTrialsPage() {
 
   async function loadAll() {
     const sessionId = await getOrCreateSessionId();
-    console.log("clinical trials session id:", sessionId);
     const [profileData, bioRes, txRes, savedRes, appRes] = await Promise.all([
       getProfile(sessionId).catch(() => null),
       supabase.from("biomarkers").select("name, status").eq("session_id", sessionId),
@@ -55,16 +54,22 @@ export default function ClinicalTrialsPage() {
     setSaved(savedRes.data || []);
     setApplications(appRes.data || []);
 
-    await runMatch(profileData, bioRes.data || [], txRes.data || []);
+    await runMatch(profileData, bioRes.data || [], txRes.data || [], sessionId, false);
   }
 
-  async function runMatch(profileData, bioData, txData) {
+  async function runMatch(profileData, bioData, txData, sessionId, forceRefresh) {
     setMatchLoading(true);
     try {
+      const accessToken = await getAccessToken();
       const res = await fetch("/api/trial-match", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
         body: JSON.stringify({
+          sessionId,
+          forceRefresh,
           cancerType: profileData?.diagnosis || "",
           stage: profileData?.stage || "",
           biomarkers: (bioData || []).map((b) => `${b.name}: ${b.status}`),
@@ -80,6 +85,16 @@ export default function ClinicalTrialsPage() {
       setMatches([]);
     }
     setMatchLoading(false);
+  }
+
+  async function handleRefreshMatches() {
+    const sessionId = await getOrCreateSessionId();
+    const bioData = biomarkers.map((b) => {
+      const [name, status] = b.split(": ");
+      return { name, status };
+    });
+    const txData = treatments.map((name) => ({ name }));
+    await runMatch(profile, bioData, txData, sessionId, true);
   }
 
   async function handleBrowse() {
@@ -196,6 +211,11 @@ export default function ClinicalTrialsPage() {
 
       {tab === "matches" && (
         <div>
+          {!matchLoading && (
+            <button style={styles.refreshButton} onClick={handleRefreshMatches}>
+              Refresh matches
+            </button>
+          )}
           {matchLoading && <p style={styles.empty}>Finding matches for your profile…</p>}
           {!matchLoading && matches.length === 0 && (
             <p style={styles.empty}>
@@ -438,6 +458,17 @@ function TrialCard({ trial, saved, onToggleSave }) {
 }
 
 const styles = {
+  refreshButton: {
+    background: "#fff",
+    border: "1px solid #E1DDD2",
+    borderRadius: "8px",
+    padding: "6px 12px",
+    fontSize: "12.5px",
+    fontWeight: 600,
+    color: "#3F628F",
+    cursor: "pointer",
+    marginBottom: "12px",
+  },
   page: { padding: "16px", paddingBottom: "80px", maxWidth: "600px", margin: "0 auto" },
   heading: { fontSize: "20px", fontWeight: 700, marginBottom: "14px" },
   readinessCard: {

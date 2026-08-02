@@ -1,10 +1,48 @@
 import { NextResponse } from "next/server";
+import { createScopedClient } from "../../../lib/supabaseRequestClient";
 
 const EMPTY_RESULT = { trials: [] };
+const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+
+function buildFingerprint({ cancerType, stage, biomarkers, currentTreatment, previousTreatments, zip }) {
+  return JSON.stringify({
+    cancerType: cancerType || "",
+    stage: stage || "",
+    biomarkers: biomarkers || [],
+    currentTreatment: currentTreatment || "",
+    previousTreatments: previousTreatments || [],
+    zip: zip || "",
+  });
+}
 
 export async function POST(req) {
   try {
-    const { cancerType, stage, biomarkers, currentTreatment, previousTreatments, zip, query } = await req.json();
+    const body = await req.json();
+    const { cancerType, stage, biomarkers, currentTreatment, previousTreatments, zip, query, sessionId, forceRefresh } = body;
+
+    const authHeader = req.headers.get("authorization");
+    const accessToken = authHeader ? authHeader.replace("Bearer ", "") : null;
+
+    // Caching only applies to real profile-based matching, not one-off
+    // keyword browsing (query) — and only when we have enough to identify
+    // whose cache this is.
+    const cacheable = !query && sessionId && accessToken;
+    const fingerprint = cacheable ? buildFingerprint(body) : null;
+    const client = cacheable ? createScopedClient(accessToken) : null;
+
+    if (cacheable && !forceRefresh) {
+      const { data: cached } = await client
+        .from("match_cache")
+        .select("results, created_at")
+        .eq("session_id", sessionId)
+        .eq("match_type", "trials")
+        .eq("profile_fingerprint", fingerprint)
+        .maybeSingle();
+
+      if (cached && Date.now() - new Date(cached.created_at).getTime() < ONE_DAY_MS) {
+        return NextResponse.json(cached.results);
+      }
+    }
 
     const sys =
       "You are matching a person to REAL, currently-recruiting clinical trials using web search. " +
@@ -66,7 +104,22 @@ Search for and return real, currently-recruiting clinical trials that best match
       return NextResponse.json(EMPTY_RESULT);
     }
 
-    return NextResponse.json({ ...EMPTY_RESULT, ...parsed });
+    const result = { ...EMPTY_RESULT, ...parsed };
+
+    if (cacheable) {
+      await client.from("match_cache").upsert(
+        {
+          session_id: sessionId,
+          match_type: "trials",
+          profile_fingerprint: fingerprint,
+          results: result,
+          created_at: new Date().toISOString(),
+        },
+        { onConflict: "session_id,match_type,profile_fingerprint" }
+      );
+    }
+
+    return NextResponse.json(result);
   } catch (err) {
     console.error("trial-match route error:", err);
     return NextResponse.json(EMPTY_RESULT);

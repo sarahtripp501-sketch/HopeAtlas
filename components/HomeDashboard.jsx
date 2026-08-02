@@ -13,7 +13,7 @@ import {
   Heart,
   Map,
 } from "lucide-react";
-import { getOrCreateSessionId, getProfile, supabase } from "../lib/supabase";
+import { getOrCreateSessionId, getProfile, getAccessToken, supabase } from "../lib/supabase";
 
 function buildQuestions(profile) {
   const qs = [
@@ -128,6 +128,7 @@ export default function HomeDashboard() {
 
     try {
       const sessionId = await getOrCreateSessionId();
+      const accessToken = await getAccessToken();
 
       // Pull the same extra profile info the Clinical Trials page uses, so
       // trial-match gets identical inputs here and there — otherwise even
@@ -143,13 +144,18 @@ export default function HomeDashboard() {
       const [matchData, trialData] = await Promise.all([
         fetch("/api/personalized-match", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+          },
           body: JSON.stringify({
+            sessionId,
             cancerType: (profile && profile.diagnosis) || "",
             stage: (profile && profile.stage) || "",
             age: (profile && profile.age) || "",
             insurance: (profile && profile.insurance) || "",
             zip: (profile && profile.zip_code) || "",
+            financialNeed: true,
           }),
         }).then((r) => r.json()),
         // Same endpoint, same shape of params the Clinical Trials page's own
@@ -157,8 +163,12 @@ export default function HomeDashboard() {
         // trial counts anywhere in the app, instead of a second, looser guess.
         fetch("/api/trial-match", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+          },
           body: JSON.stringify({
+            sessionId,
             cancerType: (profile && profile.diagnosis) || "",
             stage: (profile && profile.stage) || "",
             biomarkers: biomarkersList,
@@ -300,7 +310,7 @@ export default function HomeDashboard() {
                   </div>
                 ) : (
                   <div style={styles.itemSub}>
-                    Financial assistance matches will show here too
+                    Financial assistance matches will show here too - please check back after filling out annual income in your profile.
                   </div>
                 )}
               </div>

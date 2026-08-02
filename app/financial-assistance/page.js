@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Star, Search, Plus, X, Trash2, HandCoins, Pill } from "lucide-react";
-import { supabase, getOrCreateSessionId, getProfile } from "../../lib/supabase";
+import { supabase, getOrCreateSessionId, getProfile, getAccessToken } from "../../lib/supabase";
 import ReportIssueButton from "../../components/ReportIssueButton";
 
 const STATUS_OPTIONS = [
@@ -48,16 +48,22 @@ export default function FinancialAssistancePage() {
     setSaved(savedRes.data || []);
     setApplications(appRes.data || []);
 
-    await runMatch(profileData);
+    await runMatch(profileData, sessionId, false);
   }
 
-  async function runMatch(profileData) {
+  async function runMatch(profileData, sessionId, forceRefresh) {
     setMatchLoading(true);
     try {
+      const accessToken = await getAccessToken();
       const res = await fetch("/api/personalized-match", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
         body: JSON.stringify({
+          sessionId,
+          forceRefresh,
           cancerType: profileData?.diagnosis || "",
           stage: profileData?.stage || "",
           age: profileData?.age || "",
@@ -73,6 +79,11 @@ export default function FinancialAssistancePage() {
       setMatches(null);
     }
     setMatchLoading(false);
+  }
+
+  async function handleRefreshMatches() {
+    const sessionId = await getOrCreateSessionId();
+    await runMatch(profile, sessionId, true);
   }
 
   async function handleBrowse() {
@@ -179,6 +190,11 @@ export default function FinancialAssistancePage() {
 
       {tab === "matches" && (
         <div>
+          {!matchLoading && (
+            <button style={styles.refreshButton} onClick={handleRefreshMatches}>
+              Refresh matches
+            </button>
+          )}
           {matchLoading && <p style={styles.empty}>Finding matches for your profile…</p>}
           {!matchLoading && matches && (
             <ResultGroups
@@ -378,6 +394,17 @@ function ResultCard({ item, saved, onToggleSave }) {
   );
 }
 const styles = {
+  refreshButton: {
+    background: "#fff",
+    border: "1px solid #E1DDD2",
+    borderRadius: "8px",
+    padding: "6px 12px",
+    fontSize: "12.5px",
+    fontWeight: 600,
+    color: "#3F628F",
+    cursor: "pointer",
+    marginBottom: "12px",
+  },
   page: { padding: "16px", paddingBottom: "80px", maxWidth: "600px", margin: "0 auto" },
   heading: { fontSize: "20px", fontWeight: 700, marginBottom: "16px" },
   tabs: { display: "flex", gap: "6px", marginBottom: "18px", flexWrap: "wrap" },

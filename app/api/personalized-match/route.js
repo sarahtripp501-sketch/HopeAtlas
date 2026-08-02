@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { createScopedClient } from "../../../lib/supabaseRequestClient";
 
 // Web-search-backed matching can take a while — this gives the function room
 // to finish rather than silently timing out on a default limit. Check your
@@ -6,6 +7,20 @@ import { NextResponse } from "next/server";
 export const maxDuration = 60;
 
 const EMPTY_RESULT = { grants: [], nonprofits: [], support_groups: [], clinical_trials: [], transportation: [], lodging: [], medication_assistance: [] };
+const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+
+function buildFingerprint({ cancerType, stage, age, insurance, zip, financialNeed, transportNeed, caregiverStatus }) {
+  return JSON.stringify({
+    cancerType: cancerType || "",
+    stage: stage || "",
+    age: age || "",
+    insurance: insurance || "",
+    zip: zip || "",
+    financialNeed: !!financialNeed,
+    transportNeed: !!transportNeed,
+    caregiverStatus: caregiverStatus || "",
+  });
+}
 
 function buildSystemPrompt(categoryList) {
   return (
@@ -80,6 +95,32 @@ async function fetchCategoryGroup(input, categoryList) {
 export async function POST(req) {
   try {
     const input = await req.json();
+    const { query, sessionId, forceRefresh } = input;
+
+    const authHeader = req.headers.get("authorization");
+    const accessToken = authHeader ? authHeader.replace("Bearer ", "") : null;
+
+    // Caching only applies to real profile-based matching, not one-off
+    // keyword browsing (query) — and only when we have enough to identify
+    // whose cache this is. AI Navigator's ad-hoc financial question doesn't
+    // send sessionId/token, so it always behaves as a live, uncached search.
+    const cacheable = !query && sessionId && accessToken;
+    const fingerprint = cacheable ? buildFingerprint(input) : null;
+    const client = cacheable ? createScopedClient(accessToken) : null;
+
+    if (cacheable && !forceRefresh) {
+      const { data: cached } = await client
+        .from("match_cache")
+        .select("results, created_at")
+        .eq("session_id", sessionId)
+        .eq("match_type", "financial")
+        .eq("profile_fingerprint", fingerprint)
+        .maybeSingle();
+
+      if (cached && Date.now() - new Date(cached.created_at).getTime() < ONE_DAY_MS) {
+        return NextResponse.json(cached.results);
+      }
+    }
 
     // Split into two independent groups so both sets of web searches run
     // concurrently instead of one long sequential chain covering all 7.
@@ -91,7 +132,22 @@ export async function POST(req) {
       fetchCategoryGroup(input, groupB),
     ]);
 
-    return NextResponse.json({ ...EMPTY_RESULT, ...resultA, ...resultB });
+    const result = { ...EMPTY_RESULT, ...resultA, ...resultB };
+
+    if (cacheable) {
+      await client.from("match_cache").upsert(
+        {
+          session_id: sessionId,
+          match_type: "financial",
+          profile_fingerprint: fingerprint,
+          results: result,
+          created_at: new Date().toISOString(),
+        },
+        { onConflict: "session_id,match_type,profile_fingerprint" }
+      );
+    }
+
+    return NextResponse.json(result);
   } catch (err) {
     console.error("personalized-match route error:", err);
     return NextResponse.json(EMPTY_RESULT);
