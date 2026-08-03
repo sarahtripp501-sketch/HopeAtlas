@@ -179,6 +179,21 @@ export default function AlertsPage() {
           Text notifications
         </label>
 
+        {hasPhone && (
+          <div style={styles.smsConsentBlock}>
+            <p style={styles.smsConsentText}>
+              By checking this box, you agree to receive text messages from Hope Atlas at the
+              phone number on your profile, including alerts about new clinical trial,
+              financial assistance, and support resource matches for your situation. Message
+              frequency varies based on your matches, up to about 1 message per day. Message
+              and data rates may apply. Reply STOP at any time to unsubscribe, or HELP for
+              help. View our{" "}
+              <a href="/terms" style={styles.prefsLink}>Terms of Service</a> and{" "}
+              <a href="/privacy-policy" style={styles.prefsLink}>Privacy Policy</a>.
+            </p>
+          </div>
+        )}
+
         {!hasPhone && (
           <p style={styles.prefsHint}>
             Add a phone number in <a href="/profile" style={styles.prefsLink}>your profile</a> to enable text notifications.
@@ -347,5 +362,11 @@ const styles = {
   prefsTitle: { fontSize: "13px", fontWeight: 700, marginBottom: "10px" },
   prefsRow: { display: "flex", alignItems: "center", gap: "8px", fontSize: "13.5px", marginBottom: "8px", cursor: "pointer" },
   prefsHint: { fontSize: "12px", color: "#6E726A", marginTop: "4px" },
+  smsConsentBlock: {
+    marginTop: "6px",
+    marginBottom: "4px",
+    paddingLeft: "24px",
+  },
+  smsConsentText: { fontSize: "11.5px", color: "#6E726A", lineHeight: 1.6, margin: 0 },
   prefsLink: { color: "#3F628F", fontWeight: 600 },
 };

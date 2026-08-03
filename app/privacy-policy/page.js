@@ -49,9 +49,13 @@ export default function PrivacyPolicyPage() {
         </p>
         <p style={styles.text}>
           If you opt into text notifications and provide a phone number, we use Twilio, a
-          third-party messaging service, to send the same types of alerts via SMS. Standard
-          message and data rates from your mobile carrier may apply. You can opt out of text
-          notifications at any time from Alerts & Notifications in the app.
+          third-party messaging service, to send the same types of alerts via SMS. Message
+          frequency varies based on your matches, up to about 1 message per day. Standard
+          message and data rates from your mobile carrier may apply. You can opt out at any
+          time by replying STOP to any message, or by disabling text notifications from Alerts
+          & Notifications in the app. We do not sell or share your phone number with third
+          parties for their own marketing purposes; it is used only to deliver the
+          notifications described here.
         </p>
       </div>
 
