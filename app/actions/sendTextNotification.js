@@ -17,8 +17,8 @@ export async function sendTextNotification({ recipients, message, category }) {
           from: process.env.TWILIO_PHONE_NUMBER,
           to: r.phone,
           body: category
-            ? `Hope Atlas: New update (${category}) — ${message}`
-            : `Hope Atlas: ${message}`,
+            ? `Hope Atlas: New update (${category}) — ${message} Reply STOP to unsubscribe.`
+            : `Hope Atlas: ${message} Reply STOP to unsubscribe.`,
         })
       )
     );

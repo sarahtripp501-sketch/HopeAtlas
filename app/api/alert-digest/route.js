@@ -120,7 +120,7 @@ export async function GET(request) {
           await twilioClient.messages.create({
             from: process.env.TWILIO_PHONE_NUMBER,
             to: profile.phone,
-            body: `Hope Atlas: You have ${summary}. Open the app to see details.`,
+            body: `Hope Atlas: You have ${summary}. Open the app to see details. Reply STOP to unsubscribe.`,
           });
         }
 
