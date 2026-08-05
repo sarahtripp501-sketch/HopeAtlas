@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, X, Pencil, Calendar as CalendarIcon } from "lucide-react";
+import { Plus, X, Pencil, Trash2, Calendar as CalendarIcon } from "lucide-react";
 import { supabase, getOrCreateSessionId } from "../../lib/supabase";
 
 export default function AppointmentsPage() {
@@ -91,6 +91,25 @@ export default function AppointmentsPage() {
     router.push("/");
   }
 
+  async function handleDelete(id) {
+    const confirmed = window.confirm("Delete this appointment? This can't be undone.");
+    if (!confirmed) return;
+
+    const sessionId = await getOrCreateSessionId();
+    const { error } = await supabase
+      .from("appointments")
+      .delete()
+      .eq("id", id)
+      .eq("session_id", sessionId);
+
+    if (error) {
+      console.error(error);
+      return;
+    }
+
+    await loadAppointments();
+  }
+
   return (
     <div style={styles.page}>
       <div style={styles.header}>
@@ -151,6 +170,7 @@ export default function AppointmentsPage() {
             key={appt.id}
             appt={appt}
             onEdit={() => openEditForm(appt)}
+            onDelete={() => handleDelete(appt.id)}
           />
         ))}
       </div>
@@ -158,7 +178,7 @@ export default function AppointmentsPage() {
   );
 }
 
-function AppointmentItem({ appt, onEdit }) {
+function AppointmentItem({ appt, onEdit, onDelete }) {
   const startDate = buildDate(appt.appt_date, appt.appt_time);
   const endDate = new Date(startDate.getTime() + 60 * 60 * 1000); // default 1hr
 
@@ -184,9 +204,14 @@ function AppointmentItem({ appt, onEdit }) {
             {appt.appt_date} at {appt.appt_time}
           </div>
         </div>
-        <button style={styles.iconButton} onClick={onEdit}>
-          <Pencil size={16} />
-        </button>
+        <div style={{ display: "flex", gap: "6px" }}>
+          <button style={styles.iconButton} onClick={onEdit}>
+            <Pencil size={16} />
+          </button>
+          <button style={styles.iconButton} onClick={onDelete}>
+            <Trash2 size={16} />
+          </button>
+        </div>
       </div>
 
      <div style={styles.calendarRow}>
