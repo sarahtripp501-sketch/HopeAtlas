@@ -63,6 +63,7 @@ export default function HomeDashboard() {
     lastUpdate: null,
   });
   const [activeMeds, setActiveMeds] = useState([]);
+  const [applications, setApplications] = useState([]);
 
   useEffect(function () {
     (async function () {
@@ -80,6 +81,7 @@ export default function HomeDashboard() {
       loadNextAppointment(id);
       loadCareCircle(id);
       loadMedications(id);
+      loadApplications(id);
     })();
   }, []);
 
@@ -132,6 +134,16 @@ export default function HomeDashboard() {
       .order("id", { ascending: true });
 
     if (!error) setActiveMeds(data || []);
+  }
+
+  async function loadApplications(sessionId) {
+    const { data, error } = await supabase
+      .from("applications")
+      .select("*")
+      .eq("session_id", sessionId)
+      .order("id", { ascending: true });
+
+    if (!error) setApplications(data || []);
   }
 
   async function checkMatches() {
@@ -408,7 +420,27 @@ export default function HomeDashboard() {
           </WaypointItem>
 
           <WaypointItem markerColor="#7C9885" href="/application-tracker">
-            <EmptyRow icon={<Star size={16} color="#4d5a51" />} title="No applications in progress" />
+            {(() => {
+              const activeApps = applications.filter(
+                (a) => a.status !== "Awarded" && a.status !== "Denied"
+              );
+              return activeApps.length > 0 ? (
+                <>
+                  <div style={styles.itemTitle}>
+                    {activeApps.length} application{activeApps.length !== 1 ? "s" : ""} in progress
+                  </div>
+                  <div style={styles.itemSub}>
+                    {activeApps
+                      .slice(0, 2)
+                      .map((a) => a.name)
+                      .join(", ")}
+                    {activeApps.length > 2 ? `, +${activeApps.length - 2} more` : ""}
+                  </div>
+                </>
+              ) : (
+                <EmptyRow icon={<Star size={16} color="#4d5a51" />} title="No applications in progress" />
+              );
+            })()}
           </WaypointItem>
 
           <WaypointItem markerColor="#B86F4E" filled href="/care-circle">
