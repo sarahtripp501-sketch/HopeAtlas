@@ -3,8 +3,9 @@ import { createScopedClient } from "../../../lib/supabaseRequestClient";
 
 const EMPTY_RESULT = { trials: [] };
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+const CTGOV_BASE = "https://clinicaltrials.gov/api/v2/studies";
 
-function buildFingerprint({ cancerType, stage, biomarkers, currentTreatment, previousTreatments, zip }) {
+function buildFingerprint({ cancerType, stage, biomarkers, currentTreatment, previousTreatments, zip, query }) {
   return JSON.stringify({
     cancerType: cancerType || "",
     stage: stage || "",
@@ -12,7 +13,61 @@ function buildFingerprint({ cancerType, stage, biomarkers, currentTreatment, pre
     currentTreatment: currentTreatment || "",
     previousTreatments: previousTreatments || [],
     zip: zip || "",
+    query: query || "",
   });
+}
+
+// Fetches real, currently-recruiting trials directly from ClinicalTrials.gov's
+// official public API — no API key needed, free, and every result returned
+// here is guaranteed to actually exist with a real NCT ID and real URL.
+async function fetchRealTrials({ cancerType, query }) {
+  const condTerm = query || cancerType || "cancer";
+  const params = new URLSearchParams({
+    "query.cond": condTerm,
+    "filter.overallStatus": "RECRUITING",
+    pageSize: "20",
+    format: "json",
+  });
+
+  const res = await fetch(`${CTGOV_BASE}?${params.toString()}`);
+  if (!res.ok) {
+    console.error("ClinicalTrials.gov API error:", res.status, await res.text());
+    return [];
+  }
+
+  const data = await res.json();
+  const studies = data.studies || [];
+
+  return studies
+    .map((s) => {
+      const p = s.protocolSection || {};
+      const nctId = p.identificationModule?.nctId || "";
+      const title = p.identificationModule?.briefTitle || "Untitled study";
+      const status = p.statusModule?.overallStatus || "";
+      const phase = (p.designModule?.phases || []).join(", ");
+      const conditions = (p.conditionsModule?.conditions || []).join(", ");
+      const interventions = (p.armsInterventionsModule?.interventions || [])
+        .map((i) => i.name)
+        .filter(Boolean)
+        .join(", ");
+      const eligibility = (p.eligibilityModule?.eligibilityCriteria || "").slice(0, 1200);
+      const locations = (p.contactsLocationsModule?.locations || [])
+        .slice(0, 5)
+        .map((l) => [l.city, l.state].filter(Boolean).join(", "));
+
+      return {
+        nctId,
+        title,
+        status,
+        phase,
+        conditions,
+        interventions,
+        eligibility,
+        locations,
+        url: nctId ? `https://clinicaltrials.gov/study/${nctId}` : null,
+      };
+    })
+    .filter((t) => t.nctId && t.url);
 }
 
 export async function POST(req) {
@@ -23,9 +78,6 @@ export async function POST(req) {
     const authHeader = req.headers.get("authorization");
     const accessToken = authHeader ? authHeader.replace("Bearer ", "") : null;
 
-    // Caching only applies to real profile-based matching, not one-off
-    // keyword browsing (query) — and only when we have enough to identify
-    // whose cache this is.
     const cacheable = !query && sessionId && accessToken;
     const fingerprint = cacheable ? buildFingerprint(body) : null;
     const client = cacheable ? createScopedClient(accessToken) : null;
@@ -44,27 +96,37 @@ export async function POST(req) {
       }
     }
 
-    const sys =
-      "You are matching a person to REAL, currently-recruiting clinical trials using web search. " +
-      "Return ONLY a JSON object (no prose, no markdown, no code fences) shaped exactly: " +
-      '{"trials":[...]}. ' +
-      "Each trial object shaped: {\"name\":string,\"url\":string,\"match_percent\":number (0-100, your estimate of fit based on the profile given),\"reasons\":[string,...] (up to 5 short phrases explaining why it matched, e.g. \"Stage IV Breast Cancer\", \"HER2 Positive\", \"Prior chemotherapy\", \"Within 25 miles\"),\"still_needed\":[string,...] (up to 3 short phrases for missing info that would help confirm eligibility, e.g. \"Insurance status\", \"Confirm current biomarker status\")}. " +
-      "Only include real, currently-recruiting or soon-to-recruit trials found via search with a real, working URL — never invent trial names or URLs. " +
-      "Never state or imply that the person qualifies, is eligible, or is a definitive match — trial eligibility can only be confirmed by the trial's own care team after a real screening. Keep each reason a short, neutral fact fragment (e.g. \"Stage IV Breast Cancer\", \"HER2 Positive\") rather than a declarative sentence like \"You qualify because...\" or \"You are eligible for...\". " +
-      "Order the array by match_percent descending. Return up to 8 trials. " +
-      "If nothing relevant is found, return an empty array rather than guessing. " +
-      "Never give medical advice — only explain match reasoning in plain, approachable language.";
+    const realTrials = await fetchRealTrials({ cancerType, query });
 
-    const user = `Find clinical trials for someone with this profile:
+    if (realTrials.length === 0) {
+      const empty = { trials: [] };
+      if (cacheable) {
+        await client.from("match_cache").upsert(
+          { session_id: sessionId, match_type: "trials", profile_fingerprint: fingerprint, results: empty, created_at: new Date().toISOString() },
+          { onConflict: "session_id,match_type,profile_fingerprint" }
+        );
+      }
+      return NextResponse.json(empty);
+    }
+
+    const sys =
+      "You are helping rank and explain REAL clinical trials that were already retrieved from ClinicalTrials.gov's official API — you are not searching the web and must not invent, add, or substitute any trial. " +
+      "Only comment on the trials provided in the data below; every trial you return must come from that list with its nctId, name, and url copied exactly. " +
+      "Return ONLY a JSON object (no prose, no code fences) shaped exactly: {\"trials\":[...]}. " +
+      "Each trial object shaped: {\"nctId\":string (copy exactly from input),\"name\":string (copy the title exactly from input),\"url\":string (copy exactly from input),\"match_percent\":number (0-100, your estimate of fit based on the profile and this trial's real eligibility/condition/intervention text),\"reasons\":[string,...] (up to 5 short neutral fact fragments grounded only in the provided text, e.g. \"Recruiting for Stage IV\", \"Includes prior chemotherapy patients\" — never a declarative verdict like \"you qualify\"),\"still_needed\":[string,...] (up to 3 short phrases for info that would help confirm eligibility)}. " +
+      "Order by match_percent descending. Include every trial from the input list, even lower-fit ones, so nothing real gets hidden from the person. " +
+      "Never state or imply that the person qualifies, is eligible, or is a definitive match for any trial — eligibility can only be confirmed by that trial's own care team after real screening.";
+
+    const user = `Person's profile:
 - Cancer type: ${cancerType || "not specified"}
 - Stage: ${stage || "not specified"}
 - Known biomarkers: ${biomarkers && biomarkers.length ? biomarkers.join(", ") : "not specified"}
 - Current treatment: ${currentTreatment || "not specified"}
 - Previous treatments: ${previousTreatments && previousTreatments.length ? previousTreatments.join(", ") : "not specified"}
 - Location (ZIP): ${zip || "not specified"}
-${query ? `- Additional search terms from the person: ${query}` : ""}
 
-Search for and return real, currently-recruiting clinical trials that best match this profile, with a match percentage and specific reasons for each.`;
+Real candidate trials retrieved from ClinicalTrials.gov (only comment on these, do not invent others):
+${JSON.stringify(realTrials, null, 2)}`;
 
     const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -78,44 +140,46 @@ Search for and return real, currently-recruiting clinical trials that best match
         max_tokens: 2200,
         system: sys,
         messages: [{ role: "user", content: user }],
-        tools: [{ type: "web_search_20250305", name: "web_search" }],
       }),
     });
 
     if (!res.ok) {
       const errText = await res.text();
       console.error("Anthropic API error:", res.status, errText);
-      return NextResponse.json(EMPTY_RESULT);
+      // Fall back to the real trials with no AI ranking, rather than empty —
+      // still 100% real, verified data, just without personalized reasoning.
+      const fallback = {
+        trials: realTrials.map((t) => ({
+          nctId: t.nctId,
+          name: t.title,
+          url: t.url,
+          match_percent: 0,
+          reasons: ["From ClinicalTrials.gov — personalized ranking unavailable right now"],
+          still_needed: [],
+        })),
+      };
+      return NextResponse.json(fallback);
     }
 
     const data = await res.json();
     const text = (data.content || []).map((b) => (b.type === "text" ? b.text : "")).join("");
     const start = text.indexOf("{");
     const end = text.lastIndexOf("}");
-    if (start === -1 || end === -1) {
-      console.error("No JSON object found in model response:", text.slice(0, 400));
-      return NextResponse.json(EMPTY_RESULT);
-    }
 
-    let parsed;
-    try {
-      parsed = JSON.parse(text.slice(start, end + 1));
-    } catch (parseErr) {
-      console.error("Failed to parse model JSON:", parseErr.message, text.slice(0, 400));
-      return NextResponse.json(EMPTY_RESULT);
+    let parsed = EMPTY_RESULT;
+    if (start !== -1 && end !== -1) {
+      try {
+        parsed = JSON.parse(text.slice(start, end + 1));
+      } catch (parseErr) {
+        console.error("Failed to parse model JSON:", parseErr.message);
+      }
     }
 
     const result = { ...EMPTY_RESULT, ...parsed };
 
     if (cacheable) {
       await client.from("match_cache").upsert(
-        {
-          session_id: sessionId,
-          match_type: "trials",
-          profile_fingerprint: fingerprint,
-          results: result,
-          created_at: new Date().toISOString(),
-        },
+        { session_id: sessionId, match_type: "trials", profile_fingerprint: fingerprint, results: result, created_at: new Date().toISOString() },
         { onConflict: "session_id,match_type,profile_fingerprint" }
       );
     }
