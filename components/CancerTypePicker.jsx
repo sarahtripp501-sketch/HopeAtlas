@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Search, X, Check } from "lucide-react";
 import { TYPE_GROUPS } from "../lib/cancerTypeGroups";
+import { CANCER_TYPE_ALIASES } from "../lib/cancerTypeAliases";
 
 export default function CancerTypePicker({ value, onChange }) {
   const [open, setOpen] = useState(false);
@@ -21,10 +22,26 @@ export default function CancerTypePicker({ value, onChange }) {
 
   const q = query.trim().toLowerCase();
 
+  // A type matches if its own name contains the query, OR if any alias that
+  // points to it matches the query (in either direction, so partial words
+  // and near-misses still work — e.g. "glioblasto" or "gbm" both hit).
+  function typeMatchesQuery(typeName) {
+    if (!q) return true;
+    if (typeName.toLowerCase().includes(q)) return true;
+
+    for (const alias in CANCER_TYPE_ALIASES) {
+      if (CANCER_TYPE_ALIASES[alias] !== typeName) continue;
+      if (alias.includes(q) || q.includes(alias)) return true;
+    }
+    return false;
+  }
+
   const filteredGroups = TYPE_GROUPS.map((g) => ({
     ...g,
-    types: g.types.filter((t) => !q || t.toLowerCase().includes(q)),
+    types: g.types.filter((t) => typeMatchesQuery(t)),
   })).filter((g) => g.types.length > 0);
+
+  const noResults = q.length > 0 && filteredGroups.length === 0;
 
   function selectType(t) {
     onChange(t);
@@ -47,7 +64,7 @@ export default function CancerTypePicker({ value, onChange }) {
             <input
               autoFocus
               style={styles.searchInput}
-              placeholder="Search cancer types..."
+              placeholder="Search cancer types, or an abbreviation like GBM..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />
@@ -59,16 +76,18 @@ export default function CancerTypePicker({ value, onChange }) {
           </div>
 
           <div style={styles.optionsScroll}>
-            <button
-              style={{
-                ...styles.option,
-                ...(value === "All / general" ? styles.optionActive : {}),
-              }}
-              onClick={() => selectType("All / general")}
-            >
-              {value === "All / general" && <Check size={14} style={{ marginRight: "6px" }} />}
-              All / general
-            </button>
+            {!noResults && (
+              <button
+                style={{
+                  ...styles.option,
+                  ...(value === "All / general" ? styles.optionActive : {}),
+                }}
+                onClick={() => selectType("All / general")}
+              >
+                {value === "All / general" && <Check size={14} style={{ marginRight: "6px" }} />}
+                All / general
+              </button>
+            )}
 
             {filteredGroups.map((g) => (
               <div key={g.label}>
@@ -89,8 +108,23 @@ export default function CancerTypePicker({ value, onChange }) {
               </div>
             ))}
 
-            {filteredGroups.length === 0 && (
-              <p style={styles.noResults}>No matching cancer types.</p>
+            {noResults && (
+              <div style={styles.noResultsBlock}>
+                <p style={styles.noResults}>
+                  We couldn't find an exact match for "{query}."
+                </p>
+                <p style={styles.noResultsSub}>
+                  You can still browse everything under All / general — national resources
+                  like financial aid, lodging, and transportation help apply regardless of
+                  cancer type.
+                </p>
+                <button
+                  style={styles.noResultsButton}
+                  onClick={() => selectType("All / general")}
+                >
+                  Use All / general
+                </button>
+              </div>
             )}
           </div>
         </div>
@@ -166,5 +200,17 @@ const styles = {
     cursor: "pointer",
   },
   optionActive: { background: "#F5F2EA", fontWeight: 600 },
-  noResults: { fontSize: "13px", color: "#9A9A90", textAlign: "center", padding: "20px" },
+  noResultsBlock: { padding: "16px 14px", textAlign: "center" },
+  noResults: { fontSize: "13.5px", color: "#262E2A", fontWeight: 600, margin: "0 0 6px" },
+  noResultsSub: { fontSize: "12.5px", color: "#6E726A", lineHeight: 1.5, margin: "0 0 12px" },
+  noResultsButton: {
+    padding: "8px 16px",
+    borderRadius: "20px",
+    border: "none",
+    background: "#111",
+    color: "#fff",
+    fontSize: "12.5px",
+    fontWeight: 600,
+    cursor: "pointer",
+  },
 };
