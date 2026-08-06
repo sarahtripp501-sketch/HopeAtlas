@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Activity, Pill, Dna, Clock, FileText, FlaskConical, HandCoins, Bookmark } from "lucide-react";
+import { Activity, Pill, Dna, Clock, FileText, FlaskConical, HandCoins, Bookmark, Printer } from "lucide-react";
 import { getOrCreateSessionId, getProfile, getSavedOrgs, supabase } from "../../lib/supabase";
 
 export default function MyJourneyPage() {
@@ -41,6 +41,7 @@ export default function MyJourneyPage() {
     { title: "Financial Assistance", href: "/financial-assistance", icon: HandCoins, desc: "Grants, medication assistance, and application tracking" },
     { title: "Timeline", href: "/timeline", icon: Clock, desc: "Your full journey in one place" },
     { title: "Medical Documents", href: "/documents", icon: FileText, desc: "Your secure health document vault" },
+    { title: "Care Summary", href: "/summary", icon: Printer, desc: "A printable summary to share with your care team" },
   ];
 
   return (
