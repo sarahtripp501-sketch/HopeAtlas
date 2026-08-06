@@ -162,11 +162,11 @@ export default function HomeDashboard() {
       // calling the same endpoint could still return different results.
       const [bioRes, txRes] = await Promise.all([
         supabase.from("biomarkers").select("name, status").eq("session_id", sessionId),
-        supabase.from("treatments").select("name").eq("session_id", sessionId),
+        supabase.from("treatments").select("name, treatment_stage").eq("session_id", sessionId),
       ]);
 
       const biomarkersList = (bioRes.data || []).map((b) => `${b.name}: ${b.status}`);
-      const previousTreatments = (txRes.data || []).map((t) => t.name);
+      const previousTreatments = (txRes.data || []).filter((t) => t.treatment_stage === "Completed").map((t) => t.name);
 
       const [matchData, trialData] = await Promise.all([
         fetch("/api/personalized-match", {

@@ -253,6 +253,21 @@ export default function ProfilePage() {
               );
             }
 
+            if (f.key === "current_treatment" || f.key === "past_treatment") {
+              const val = form[f.key] || "";
+              return (
+                <label key={f.key} style={styles.label}>
+                  {f.label}
+                  <div style={styles.readonlySummary}>
+                    {val ? val : <span style={styles.readonlyEmpty}>Nothing added yet</span>}
+                  </div>
+                  <a href="/treatments" style={styles.manageLink}>
+                    Manage in Treatments →
+                  </a>
+                </label>
+              );
+            }
+
             return (
               <label key={f.key} style={styles.label}>
                 {f.label}
@@ -297,6 +312,81 @@ export default function ProfilePage() {
 }
 
 const styles = {
+  readonlySummary: {
+    padding: "10px 12px",
+    borderRadius: "8px",
+    border: "1px solid #E5DFD2",
+    background: "#F5F2EA",
+    color: "#2A2622",
+    fontSize: "14px",
+    fontWeight: 400,
+  },
+  readonlyEmpty: {
+    color: "#9a9488",
+    fontWeight: 400,
+  },
+  manageLink: {
+    fontSize: "12.5px",
+    color: "#3F628F",
+    fontWeight: 600,
+    textDecoration: "none",
+    marginTop: "2px",
+  },
+  chipWrap: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "8px",
+  },
+  chip: {
+    padding: "8px 14px",
+    borderRadius: "20px",
+    border: "1px solid #E5DFD2",
+    background: "#FFFFFF",
+    color: "#2A2622",
+    fontSize: "13px",
+    fontWeight: 500,
+    cursor: "pointer",
+    fontFamily: "inherit",
+  },
+  chipOn: {
+    background: "#2B4339",
+    borderColor: "#2B4339",
+    color: "#FAF6F0",
+  },
+  chipAdd: {
+    padding: "8px 14px",
+    borderRadius: "20px",
+    border: "1px dashed #B9C7BC",
+    background: "transparent",
+    color: "#5f6d63",
+    fontSize: "13px",
+    fontWeight: 500,
+    cursor: "pointer",
+    fontFamily: "inherit",
+  },
+  customInputRow: {
+    display: "flex",
+    gap: "6px",
+    alignItems: "center",
+  },
+  customInput: {
+    padding: "7px 10px",
+    borderRadius: "8px",
+    border: "1px solid #E5DFD2",
+    fontSize: "13px",
+    fontFamily: "inherit",
+    width: "140px",
+  },
+  customInputConfirm: {
+    padding: "7px 12px",
+    borderRadius: "8px",
+    border: "none",
+    background: "#2B4339",
+    color: "#FAF6F0",
+    fontSize: "12.5px",
+    fontWeight: 600,
+    cursor: "pointer",
+  },
   page: { minHeight: "100vh", background: "#FAF6F0" },
   loadingWrap: {
     display: "flex",

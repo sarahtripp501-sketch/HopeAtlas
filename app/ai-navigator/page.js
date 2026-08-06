@@ -34,7 +34,7 @@ export default function AINavigatorPage() {
     const profile = await getProfile(sessionId).catch(() => null);
 
     const [txRes, bioRes] = await Promise.all([
-      supabase.from("treatments").select("name").eq("session_id", sessionId),
+      supabase.from("treatments").select("name, treatment_stage").eq("session_id", sessionId),
       supabase.from("biomarkers").select("name, status").eq("session_id", sessionId),
     ]);
 
@@ -43,7 +43,7 @@ export default function AINavigatorPage() {
       stage: profile?.stage || "",
       zip: profile?.zip_code || "",
       insurance: profile?.insurance || "",
-      treatments: (txRes.data || []).map((t) => t.name),
+      treatments: (txRes.data || []).filter((t) => t.treatment_stage !== "Completed").map((t) => t.name),
       biomarkers: (bioRes.data || []).map((b) => `${b.name}: ${b.status}`),
     });
   }

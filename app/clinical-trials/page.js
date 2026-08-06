@@ -43,7 +43,7 @@ export default function ClinicalTrialsPage() {
     const [profileData, bioRes, txRes, savedRes, appRes] = await Promise.all([
       getProfile(sessionId).catch(() => null),
       supabase.from("biomarkers").select("name, status").eq("session_id", sessionId),
-      supabase.from("treatments").select("name").eq("session_id", sessionId),
+      supabase.from("treatments").select("name, treatment_stage").eq("session_id", sessionId),
       supabase.from("saved_trials").select("*").eq("session_id", sessionId).order("id"),
       supabase.from("trial_applications").select("*").eq("session_id", sessionId).order("id"),
     ]);
@@ -74,7 +74,7 @@ export default function ClinicalTrialsPage() {
           stage: profileData?.stage || "",
           biomarkers: (bioData || []).map((b) => `${b.name}: ${b.status}`),
           currentTreatment: profileData?.current_treatment || "",
-          previousTreatments: (txData || []).map((t) => t.name),
+          previousTreatments: (txData || []).filter((t) => t.treatment_stage === "Completed").map((t) => t.name),
           zip: profileData?.zip_code || "",
         }),
       });

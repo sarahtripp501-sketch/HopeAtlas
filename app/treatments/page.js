@@ -4,6 +4,20 @@ import { useState, useEffect } from "react";
 import { Plus, X, Pencil, Trash2, ArrowLeft, Loader2 } from "lucide-react";
 import { supabase, getOrCreateSessionId, getProfile } from "../../lib/supabase";
 
+const TREATMENT_OPTIONS = [
+  "Surgery",
+  "Chemotherapy",
+  "Radiation",
+  "Immunotherapy",
+  "Targeted Therapy",
+  "Hormone Therapy",
+  "Stem Cell / Bone Marrow Transplant",
+  "Clinical Trial Treatment",
+  "Palliative / Supportive Care",
+  "Active Surveillance / Watchful Waiting",
+  "Other",
+];
+
 export default function TreatmentsPage() {
   const [treatments, setTreatments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -11,6 +25,7 @@ export default function TreatmentsPage() {
   const [editingId, setEditingId] = useState(null);
   const [name, setName] = useState("");
   const [treatmentType, setTreatmentType] = useState("");
+  const [treatmentStage, setTreatmentStage] = useState("Ongoing");
   const [status, setStatus] = useState("");
   const [notes, setNotes] = useState("");
   const [startDate, setStartDate] = useState("");
@@ -36,6 +51,7 @@ export default function TreatmentsPage() {
     setEditingId(null);
     setName("");
     setTreatmentType("");
+    setTreatmentStage("Ongoing");
     setStatus("");
     setNotes("");
     setStartDate("");
@@ -46,6 +62,7 @@ export default function TreatmentsPage() {
     setEditingId(t.id);
     setName(t.name);
     setTreatmentType(t.treatment_type || "");
+    setTreatmentStage(t.treatment_stage || "Ongoing");
     setStatus(t.status || "");
     setNotes(t.notes || "");
     setStartDate(t.start_date || "");
@@ -59,7 +76,7 @@ export default function TreatmentsPage() {
     if (editingId) {
       const { error } = await supabase
         .from("treatments")
-        .update({ name, treatment_type: treatmentType, status, notes, start_date: startDate || null })
+        .update({ name, treatment_type: treatmentType, treatment_stage: treatmentStage, status, notes, start_date: startDate || null })
         .eq("id", editingId)
         .eq("session_id", sessionId);
       if (error) {
@@ -71,6 +88,7 @@ export default function TreatmentsPage() {
         session_id: sessionId,
         name,
         treatment_type: treatmentType,
+        treatment_stage: treatmentStage,
         status,
         notes,
         start_date: startDate || null,
@@ -84,6 +102,26 @@ export default function TreatmentsPage() {
     setShowForm(false);
     setEditingId(null);
     await loadTreatments();
+    await syncProfileTreatmentSummary(sessionId);
+  }
+
+  // Keeps profiles.current_treatment / past_treatment automatically accurate
+  // based on real Treatments entries, instead of being separately typed on
+  // the Profile page — "fill it once, it shows everywhere."
+  async function syncProfileTreatmentSummary(sessionId) {
+    const { data } = await supabase
+      .from("treatments")
+      .select("name, treatment_stage")
+      .eq("session_id", sessionId);
+
+    const rows = data || [];
+    const current = rows.filter((r) => r.treatment_stage !== "Completed").map((r) => r.name).join(", ");
+    const past = rows.filter((r) => r.treatment_stage === "Completed").map((r) => r.name).join(", ");
+
+    await supabase
+      .from("profiles")
+      .update({ current_treatment: current, past_treatment: past })
+      .eq("session_id", sessionId);
   }
 
   async function handleDelete(id) {
@@ -103,6 +141,7 @@ export default function TreatmentsPage() {
     }
     if (selected && selected.id === id) setSelected(null);
     await loadTreatments();
+    await syncProfileTreatmentSummary(sessionId);
   }
 
   if (selected) {
@@ -141,15 +180,51 @@ export default function TreatmentsPage() {
               value={name}
               onChange={(e) => setName(e.target.value)}
             />
+
+            <label style={styles.label}>Type</label>
+            <div style={styles.chipWrap}>
+              {TREATMENT_OPTIONS.map((option) => (
+                <button
+                  key={option}
+                  type="button"
+                  style={{
+                    ...styles.chip,
+                    ...(treatmentType === option ? styles.chipOn : {}),
+                  }}
+                  onClick={() => setTreatmentType(treatmentType === option ? "" : option)}
+                >
+                  {option}
+                </button>
+              ))}
+            </div>
+
+            <label style={styles.label}>Status</label>
+            <div style={styles.stageToggleRow}>
+              <button
+                type="button"
+                style={{
+                  ...styles.stageToggle,
+                  ...(treatmentStage === "Ongoing" ? styles.stageToggleOn : {}),
+                }}
+                onClick={() => setTreatmentStage("Ongoing")}
+              >
+                Ongoing
+              </button>
+              <button
+                type="button"
+                style={{
+                  ...styles.stageToggle,
+                  ...(treatmentStage === "Completed" ? styles.stageToggleOn : {}),
+                }}
+                onClick={() => setTreatmentStage("Completed")}
+              >
+                Completed
+              </button>
+            </div>
+
             <input
               style={styles.input}
-              placeholder="Type (e.g. Immunotherapy)"
-              value={treatmentType}
-              onChange={(e) => setTreatmentType(e.target.value)}
-            />
-            <input
-              style={styles.input}
-              placeholder="Status (e.g. Receiving every 3 weeks)"
+              placeholder="Details (e.g. Receiving every 3 weeks)"
               value={status}
               onChange={(e) => setStatus(e.target.value)}
             />
@@ -184,7 +259,17 @@ export default function TreatmentsPage() {
           <div key={t.id} style={styles.card}>
             <div onClick={() => setSelected(t)} style={{ cursor: "pointer" }}>
               <div style={styles.cardTitle}>{t.name}</div>
-              {t.treatment_type && <div style={styles.cardType}>{t.treatment_type}</div>}
+              <div style={{ display: "flex", gap: "8px", alignItems: "center", marginTop: "2px" }}>
+                {t.treatment_type && <div style={styles.cardType}>{t.treatment_type}</div>}
+                <span
+                  style={{
+                    ...styles.stageBadge,
+                    ...(t.treatment_stage === "Completed" ? styles.stageBadgeCompleted : styles.stageBadgeOngoing),
+                  }}
+                >
+                  {t.treatment_stage === "Completed" ? "Completed" : "Ongoing"}
+                </span>
+              </div>
               {t.status && <div style={styles.cardStatus}>{t.status}</div>}
               {t.start_date && <div style={styles.cardDate}>Started {t.start_date}</div>}
             </div>
@@ -374,6 +459,66 @@ function TreatmentDetail({ treatment, onBack }) {
 }
 
 const styles = {
+  chipWrap: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "6px",
+    marginBottom: "10px",
+  },
+  chip: {
+    padding: "6px 12px",
+    borderRadius: "16px",
+    border: "1px solid #E1DDD2",
+    background: "#fff",
+    color: "#262E2A",
+    fontSize: "12px",
+    fontWeight: 500,
+    cursor: "pointer",
+    fontFamily: "inherit",
+  },
+  chipOn: {
+    background: "#111",
+    borderColor: "#111",
+    color: "#fff",
+  },
+  stageToggleRow: {
+    display: "flex",
+    gap: "8px",
+    marginBottom: "10px",
+  },
+  stageToggle: {
+    flex: 1,
+    padding: "9px",
+    borderRadius: "8px",
+    border: "1px solid #E1DDD2",
+    background: "#fff",
+    color: "#6E726A",
+    fontSize: "13px",
+    fontWeight: 600,
+    cursor: "pointer",
+    fontFamily: "inherit",
+  },
+  stageToggleOn: {
+    background: "#111",
+    borderColor: "#111",
+    color: "#fff",
+  },
+  stageBadge: {
+    fontSize: "10.5px",
+    fontWeight: 700,
+    padding: "2px 8px",
+    borderRadius: "10px",
+    textTransform: "uppercase",
+    letterSpacing: "0.03em",
+  },
+  stageBadgeOngoing: {
+    background: "#E1F5EE",
+    color: "#0F6E56",
+  },
+  stageBadgeCompleted: {
+    background: "#F0EDE4",
+    color: "#6E726A",
+  },
   page: { padding: "16px", paddingBottom: "80px", maxWidth: "600px", margin: "0 auto" },
   header: {
     display: "flex",
