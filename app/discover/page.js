@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Activity, Pill, Dna, Clock, FileText, FlaskConical, HandCoins } from "lucide-react";
-import { getOrCreateSessionId, getProfile } from "../../lib/supabase";
+import { Activity, Pill, Dna, Clock, FileText, FlaskConical, HandCoins, Bookmark } from "lucide-react";
+import { getOrCreateSessionId, getProfile, getSavedOrgs, supabase } from "../../lib/supabase";
 
 export default function MyJourneyPage() {
   const [hasProfile, setHasProfile] = useState(null);
+  const [savedCounts, setSavedCounts] = useState({ orgs: 0, trials: 0, grants: 0 });
 
   useEffect(() => {
     (async () => {
@@ -15,6 +16,18 @@ export default function MyJourneyPage() {
           setHasProfile(!!(p && (p.diagnosis || p.name)));
         })
         .catch(() => setHasProfile(false));
+
+      const [orgsRes, trialsRes, grantsRes] = await Promise.all([
+        getSavedOrgs(sessionId).catch(() => []),
+        supabase.from("saved_trials").select("id", { count: "exact", head: true }).eq("session_id", sessionId),
+        supabase.from("saved_grants").select("id", { count: "exact", head: true }).eq("session_id", sessionId),
+      ]);
+
+      setSavedCounts({
+        orgs: (orgsRes || []).length,
+        trials: trialsRes.count || 0,
+        grants: grantsRes.count || 0,
+      });
     })();
   }, []);
 
@@ -38,6 +51,27 @@ export default function MyJourneyPage() {
         <p style={styles.subheading}>
           Everything about your diagnosis, treatment, and health history.
         </p>
+
+        {(savedCounts.orgs + savedCounts.trials + savedCounts.grants > 0) && (
+          <a href="/saved" style={styles.savedCard}>
+            <div style={styles.savedCardHeader}>
+              <Bookmark size={15} color="#C9A227" />
+              <span style={styles.savedCardTitle}>Your saved resources</span>
+            </div>
+            <div style={styles.savedCardRow}>
+              {savedCounts.orgs > 0 && (
+                <span style={styles.savedCardStat}>{savedCounts.orgs} organization{savedCounts.orgs !== 1 ? "s" : ""}</span>
+              )}
+              {savedCounts.trials > 0 && (
+                <span style={styles.savedCardStat}>{savedCounts.trials} trial{savedCounts.trials !== 1 ? "s" : ""}</span>
+              )}
+              {savedCounts.grants > 0 && (
+                <span style={styles.savedCardStat}>{savedCounts.grants} program{savedCounts.grants !== 1 ? "s" : ""}</span>
+              )}
+            </div>
+            <span style={styles.savedCardLink}>View all saved →</span>
+          </a>
+        )}
 
         <div style={styles.list}>
           {ITEMS.map((item, i) => {
@@ -89,6 +123,45 @@ const styles = {
     fontSize: "14px",
     color: "#5f6d63",
     marginBottom: "28px",
+  },
+  savedCard: {
+    display: "block",
+    background: "#FFFFFF",
+    border: "1px solid #E5DFD2",
+    borderRadius: "12px",
+    padding: "14px 16px",
+    marginBottom: "24px",
+    marginTop: "-8px",
+    textDecoration: "none",
+  },
+  savedCardHeader: {
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+    marginBottom: "8px",
+  },
+  savedCardTitle: {
+    fontSize: "13.5px",
+    fontWeight: 600,
+    color: "#2A2622",
+  },
+  savedCardRow: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "10px",
+    marginBottom: "8px",
+  },
+  savedCardStat: {
+    fontSize: "12.5px",
+    color: "#5f6d63",
+    background: "#F5F2EA",
+    padding: "3px 10px",
+    borderRadius: "12px",
+  },
+  savedCardLink: {
+    fontSize: "12.5px",
+    fontWeight: 600,
+    color: "#3F628F",
   },
   list: {
     display: "flex",
