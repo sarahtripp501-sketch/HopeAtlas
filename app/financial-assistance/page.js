@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Star, Search, Plus, X, Trash2, HandCoins, Pill } from "lucide-react";
-import { supabase, getOrCreateSessionId, getProfile, getAccessToken } from "../../lib/supabase";
+import { supabase, getOrCreateSessionId, getProfile, getAccessToken, getSavedOrgs } from "../../lib/supabase";
 import ReportIssueButton from "../../components/ReportIssueButton";
 
 const STATUS_OPTIONS = [
@@ -21,6 +21,7 @@ export default function FinancialAssistancePage() {
   const [matchLoading, setMatchLoading] = useState(true);
 
   const [saved, setSaved] = useState([]);
+  const [savedOrgs, setSavedOrgs] = useState([]);
   const [applications, setApplications] = useState([]);
 
   const [browseQuery, setBrowseQuery] = useState("");
@@ -38,15 +39,19 @@ export default function FinancialAssistancePage() {
 
   async function loadAll() {
     const sessionId = await getOrCreateSessionId();
-    const [profileData, savedRes, appRes] = await Promise.all([
+    const [profileData, savedRes, appRes, savedOrgsRes] = await Promise.all([
       getProfile(sessionId).catch(() => null),
       supabase.from("saved_grants").select("*").eq("session_id", sessionId).order("id"),
       supabase.from("grant_applications").select("*").eq("session_id", sessionId).order("id"),
+      getSavedOrgs(sessionId).catch(() => []),
     ]);
 
     setProfile(profileData);
     setSaved(savedRes.data || []);
     setApplications(appRes.data || []);
+    // Only show orgs saved from Resources that are actually tagged financial —
+    // this is what connects a heart-saved org on Resources to showing up here.
+    setSavedOrgs((savedOrgsRes || []).filter((o) => (o.cats || []).includes("financial")));
 
     await runMatch(profileData, sessionId, false);
   }
@@ -174,7 +179,7 @@ export default function FinancialAssistancePage() {
       <div style={styles.tabs}>
         {[
           ["matches", "Matches"],
-          ["saved", `Saved (${saved.length})`],
+          ["saved", `Saved (${saved.length + savedOrgs.length})`],
           ["applications", "Applications"],
           ["browse", "Browse"],
         ].map(([key, label]) => (
@@ -214,7 +219,27 @@ export default function FinancialAssistancePage() {
 
       {tab === "saved" && (
         <div>
-          {saved.length === 0 && <p style={styles.empty}>No saved programs yet.</p>}
+          {savedOrgs.length > 0 && (
+            <>
+              <div style={styles.sectionLabel}>Saved organizations</div>
+              <div style={{ ...styles.list, marginBottom: "20px" }}>
+                {savedOrgs.map((o) => (
+                  <div key={o.url} style={styles.card}>
+                    <div style={{ flex: 1 }}>
+                      <a href={o.url} target="_blank" rel="noopener noreferrer" style={styles.cardLink}>
+                        {o.name}
+                      </a>
+                      <div style={styles.cardSubtitle}>Saved from Resources</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div style={styles.sectionLabel}>Saved grants & programs</div>
+            </>
+          )}
+          {saved.length === 0 && savedOrgs.length === 0 && (
+            <p style={styles.empty}>No saved programs yet.</p>
+          )}
           <div style={styles.list}>
             {saved.map((s) => (
               <div key={s.id} style={styles.card}>
