@@ -5,6 +5,26 @@ const EMPTY_RESULT = { trials: [] };
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 const CTGOV_BASE = "https://clinicaltrials.gov/api/v2/studies";
 
+// Profile's diagnosis picker stores compound labels like
+// "Brain tumor - Glioblastoma" or "Leukemia - Acute myeloid (AML)" — sending
+// the whole phrase to ClinicalTrials.gov's condition search under-matches,
+// since real trials are tagged with just the specific term. This splits out
+// the specific part (after the dash) as the primary search term, and the
+// broader category (before the dash) as a fallback if the specific search
+// comes back empty — a narrow diagnosis genuinely can have zero currently-
+// recruiting trials at any given moment, and falling back beats dead-ending.
+function extractSpecificTerm(cancerType) {
+  if (!cancerType) return "";
+  const parts = cancerType.split(" - ");
+  return (parts.length > 1 ? parts[parts.length - 1] : cancerType).trim();
+}
+
+function extractBroadTerm(cancerType) {
+  if (!cancerType) return "";
+  const parts = cancerType.split(" - ");
+  return parts.length > 1 ? parts[0].trim() : "";
+}
+
 function buildFingerprint({ cancerType, stage, biomarkers, currentTreatment, previousTreatments, zip, query }) {
   return JSON.stringify({
     cancerType: cancerType || "",
@@ -17,11 +37,7 @@ function buildFingerprint({ cancerType, stage, biomarkers, currentTreatment, pre
   });
 }
 
-// Fetches real, currently-recruiting trials directly from ClinicalTrials.gov's
-// official public API — no API key needed, free, and every result returned
-// here is guaranteed to actually exist with a real NCT ID and real URL.
-async function fetchRealTrials({ cancerType, query }) {
-  const condTerm = query || cancerType || "cancer";
+async function fetchTrialsForCondition(condTerm) {
   const params = new URLSearchParams({
     "query.cond": condTerm,
     "filter.overallStatus": "RECRUITING",
@@ -36,39 +52,58 @@ async function fetchRealTrials({ cancerType, query }) {
   }
 
   const data = await res.json();
-  const studies = data.studies || [];
-
-  return studies
-    .map((s) => {
-      const p = s.protocolSection || {};
-      const nctId = p.identificationModule?.nctId || "";
-      const title = p.identificationModule?.briefTitle || "Untitled study";
-      const status = p.statusModule?.overallStatus || "";
-      const phase = (p.designModule?.phases || []).join(", ");
-      const conditions = (p.conditionsModule?.conditions || []).join(", ");
-      const interventions = (p.armsInterventionsModule?.interventions || [])
-        .map((i) => i.name)
-        .filter(Boolean)
-        .join(", ");
-      const eligibility = (p.eligibilityModule?.eligibilityCriteria || "").slice(0, 1200);
-      const locations = (p.contactsLocationsModule?.locations || [])
-        .slice(0, 5)
-        .map((l) => [l.city, l.state].filter(Boolean).join(", "));
-
-      return {
-        nctId,
-        title,
-        status,
-        phase,
-        conditions,
-        interventions,
-        eligibility,
-        locations,
-        url: nctId ? `https://clinicaltrials.gov/study/${nctId}` : null,
-      };
-    })
-    .filter((t) => t.nctId && t.url);
+  return data.studies || [];
 }
+
+function mapStudy(s) {
+  const p = s.protocolSection || {};
+  const nctId = p.identificationModule?.nctId || "";
+  const title = p.identificationModule?.briefTitle || "Untitled study";
+  const status = p.statusModule?.overallStatus || "";
+  const phase = (p.designModule?.phases || []).join(", ");
+  const conditions = (p.conditionsModule?.conditions || []).join(", ");
+  const interventions = (p.armsInterventionsModule?.interventions || [])
+    .map((i) => i.name)
+    .filter(Boolean)
+    .join(", ");
+  const eligibility = (p.eligibilityModule?.eligibilityCriteria || "").slice(0, 1200);
+  const locations = (p.contactsLocationsModule?.locations || [])
+    .slice(0, 5)
+    .map((l) => [l.city, l.state].filter(Boolean).join(", "));
+
+  return {
+    nctId,
+    title,
+    status,
+    phase,
+    conditions,
+    interventions,
+    eligibility,
+    locations,
+    url: nctId ? `https://clinicaltrials.gov/study/${nctId}` : null,
+  };
+}
+
+// Fetches real, currently-recruiting trials directly from ClinicalTrials.gov's
+// official public API — no API key needed, free, and every result returned
+// here is guaranteed to actually exist with a real NCT ID and real URL.
+async function fetchRealTrials({ cancerType, query }) {
+  const specificTerm = query || extractSpecificTerm(cancerType) || "cancer";
+  let studies = await fetchTrialsForCondition(specificTerm);
+
+  // If the specific term found nothing, and there's a broader category to
+  // fall back to (and this wasn't a manual keyword search), retry with that
+  // instead of returning empty.
+  if (studies.length === 0 && !query) {
+    const broadTerm = extractBroadTerm(cancerType);
+    if (broadTerm && broadTerm.toLowerCase() !== specificTerm.toLowerCase()) {
+      studies = await fetchTrialsForCondition(broadTerm);
+    }
+  }
+
+  return studies.map(mapStudy).filter((t) => t.nctId && t.url);
+}
+
 
 export async function POST(req) {
   try {
@@ -114,7 +149,7 @@ export async function POST(req) {
       "Only comment on the trials provided in the data below; every trial you return must come from that list with its nctId, name, and url copied exactly. " +
       "Return ONLY a JSON object (no prose, no code fences) shaped exactly: {\"trials\":[...]}. " +
       "Each trial object shaped: {\"nctId\":string (copy exactly from input),\"name\":string (copy the title exactly from input),\"url\":string (copy exactly from input),\"match_percent\":number (0-100, your estimate of fit based on the profile and this trial's real eligibility/condition/intervention text),\"reasons\":[string,...] (up to 5 short neutral fact fragments grounded only in the provided text, e.g. \"Recruiting for Stage IV\", \"Includes prior chemotherapy patients\" — never a declarative verdict like \"you qualify\"),\"still_needed\":[string,...] (up to 3 short phrases for info that would help confirm eligibility)}. " +
-      "Order by match_percent descending. Include every trial from the input list, even lower-fit ones, so nothing real gets hidden from the person. " +
+      "Order by match_percent descending. Select and return only the best-fitting 8 trials from the list below — you do not need to include every trial provided, just the ones most worth the person's attention. " +
       "Never state or imply that the person qualifies, is eligible, or is a definitive match for any trial — eligibility can only be confirmed by that trial's own care team after real screening.";
 
     const user = `Person's profile:
@@ -137,7 +172,7 @@ ${JSON.stringify(realTrials, null, 2)}`;
       },
       body: JSON.stringify({
         model: "claude-sonnet-4-6",
-        max_tokens: 2200,
+        max_tokens: 4000,
         system: sys,
         messages: [{ role: "user", content: user }],
       }),
