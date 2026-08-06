@@ -272,7 +272,23 @@ export default function ProfilePage() {
             {status.state === "loading" ? "Saving…" : "Save profile"}
           </button>
 
-          {status.state === "success" && <p style={styles.success}>{status.message}</p>}
+          {status.state === "success" && (
+            <div style={styles.successBlock}>
+              <p style={styles.success}>{status.message}</p>
+              <p style={styles.successPrompt}>Where would you like to go next?</p>
+              <div style={styles.successButtonRow}>
+                <a href="/clinical-trials" style={styles.successButton}>
+                  See possible trial matches
+                </a>
+                <a href="/financial-assistance" style={styles.successButton}>
+                  Find support & financial help
+                </a>
+                <a href="/discover" style={styles.successButtonSecondary}>
+                  Review my journey
+                </a>
+              </div>
+            </div>
+          )}
           {status.state === "error" && <p style={styles.error}>{status.message}</p>}
         </form>
       </div>
@@ -392,6 +408,46 @@ const styles = {
     cursor: "pointer",
     marginTop: "6px",
   },
-  success: { fontSize: "13px", color: "#3f6b4a" },
+  success: { fontSize: "13px", color: "#3f6b4a", margin: 0 },
   error: { fontSize: "13px", color: "#a34430" },
+  successBlock: {
+    marginTop: "12px",
+    padding: "16px",
+    borderRadius: "10px",
+    background: "#EDF2EC",
+    border: "1px solid #D7E3D9",
+  },
+  successPrompt: {
+    fontSize: "12.5px",
+    color: "#5f6d63",
+    margin: "6px 0 12px",
+  },
+  successButtonRow: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "8px",
+  },
+  successButton: {
+    display: "block",
+    textAlign: "center",
+    padding: "10px",
+    borderRadius: "8px",
+    background: "#2B4339",
+    color: "#FAF6F0",
+    fontWeight: 600,
+    fontSize: "13.5px",
+    textDecoration: "none",
+  },
+  successButtonSecondary: {
+    display: "block",
+    textAlign: "center",
+    padding: "10px",
+    borderRadius: "8px",
+    background: "transparent",
+    border: "1px solid #B9C7BC",
+    color: "#2B4339",
+    fontWeight: 600,
+    fontSize: "13.5px",
+    textDecoration: "none",
+  },
 };
