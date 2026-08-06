@@ -17,6 +17,14 @@ const CATEGORIES = [
   "Medical Bills",
 ];
 
+// Supabase Storage rejects object keys containing spaces or special Unicode
+// characters — macOS screenshot filenames in particular include a narrow
+// no-break space before "AM"/"PM" that triggers this. This keeps the real
+// filename for display, only sanitizing what's used as the storage path.
+function sanitizeFileName(name) {
+  return name.normalize("NFKD").replace(/[^\w.\-]/g, "_");
+}
+
 export default function DocumentsPage() {
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -24,6 +32,7 @@ export default function DocumentsPage() {
   const [showUpload, setShowUpload] = useState(false);
   const [category, setCategory] = useState(CATEGORIES[0]);
   const [file, setFile] = useState(null);
+  const [aiConsent, setAiConsent] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [selected, setSelected] = useState(null);
   const fileInputRef = useRef(null);
@@ -80,7 +89,7 @@ export default function DocumentsPage() {
 
     try {
       const sessionId = await getOrCreateSessionId();
-      const filePath = `${sessionId}/${Date.now()}_${file.name}`;
+      const filePath = `${sessionId}/${Date.now()}_${sanitizeFileName(file.name)}`;
 
       const { error: uploadError } = await supabase.storage
         .from("documents")
@@ -96,16 +105,18 @@ export default function DocumentsPage() {
       const mediaType = file.type;
 
       let explanation = "";
-      try {
-        const res = await fetch("/api/document-explain", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ base64Data, mediaType, category }),
-        });
-        const data = await res.json();
-        explanation = data.explanation || "";
-      } catch (err) {
-        console.error("explain failed", err);
+      if (aiConsent) {
+        try {
+          const res = await fetch("/api/document-explain", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ base64Data, mediaType, category }),
+          });
+          const data = await res.json();
+          explanation = data.explanation || "";
+        } catch (err) {
+          console.error("explain failed", err);
+        }
       }
 
       const { data: insertData, error: insertError } = await supabase
@@ -128,19 +139,22 @@ export default function DocumentsPage() {
       const newDoc = insertData[0];
 
       let events = [];
-      try {
-        const res = await fetch("/api/document-timeline-extract", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ base64Data, mediaType }),
-        });
-        const data = await res.json();
-        events = data.events || [];
-      } catch (err) {
-        console.error("extraction failed", err);
+      if (aiConsent) {
+        try {
+          const res = await fetch("/api/document-timeline-extract", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ base64Data, mediaType }),
+          });
+          const data = await res.json();
+          events = data.events || [];
+        } catch (err) {
+          console.error("extraction failed", err);
+        }
       }
 
       setFile(null);
+      setAiConsent(false);
       setShowUpload(false);
       await loadDocuments();
 
@@ -302,7 +316,7 @@ export default function DocumentsPage() {
     <div style={styles.page}>
       <div style={styles.header}>
         <h1 style={styles.heading}>Medical Documents</h1>
-        <button style={styles.addButton} onClick={() => setShowUpload(true)}>
+        <button style={styles.addButton} onClick={() => { setAiConsent(false); setShowUpload(true); }}>
           <Plus size={20} />
         </button>
       </div>
@@ -333,10 +347,20 @@ export default function DocumentsPage() {
             </div>
 
             <p style={styles.hipaaNotice}>
-              Uploaded documents are stored securely and may be processed by AI to generate a
-              plain-language summary. Hope Atlas is not currently HIPAA-certified — if that
-              matters to you, avoid uploading documents containing sensitive medical records.
+              Hope Atlas is not currently HIPAA-certified. Your document is always stored
+              securely either way — this choice only controls whether its contents are also
+              sent to Anthropic's AI to generate a plain-language summary and auto-detect
+              timeline events.
             </p>
+
+            <label style={styles.consentRow}>
+              <input
+                type="checkbox"
+                checked={aiConsent}
+                onChange={(e) => setAiConsent(e.target.checked)}
+              />
+              Let AI read this document to generate a summary
+            </label>
 
             <select
               style={styles.input}
@@ -471,8 +495,9 @@ function DocumentDetail({ doc, onBack, onOpen, onDelete, onRetry, onUpdated }) {
   const [retrying, setRetrying] = useState(false);
   const [localExplanation, setLocalExplanation] = useState(doc.explanation);
 
+  const neverGenerated = !localExplanation;
   const failed =
-    !localExplanation ||
+    neverGenerated ||
     localExplanation.startsWith("Sorry, we couldn't read this document");
 
   async function handleRetryClick() {
@@ -514,7 +539,7 @@ function DocumentDetail({ doc, onBack, onOpen, onDelete, onRetry, onUpdated }) {
             ) : (
               <RefreshCw size={13} style={{ marginRight: "5px" }} />
             )}
-            {retrying ? "Retrying…" : "Retry explanation"}
+            {retrying ? "Generating…" : neverGenerated ? "Get AI explanation" : "Retry explanation"}
           </button>
         )}
       </div>
@@ -523,7 +548,10 @@ function DocumentDetail({ doc, onBack, onOpen, onDelete, onRetry, onUpdated }) {
         {localExplanation ? (
           <p style={styles.infoText}>{localExplanation}</p>
         ) : (
-          <p style={styles.infoText}>No explanation available for this document.</p>
+          <p style={styles.infoText}>
+            You chose not to have AI read this document when you uploaded it. Tap "Get AI
+            explanation" above if you'd like one now.
+          </p>
         )}
         <p style={styles.disclaimer}>
           This is general educational information, not medical advice. Talk to your
@@ -543,7 +571,16 @@ const styles = {
     border: "1px solid #E1DDD2",
     borderRadius: "8px",
     padding: "10px 12px",
-    marginBottom: "12px",
+    marginBottom: "10px",
+  },
+  consentRow: {
+    display: "flex",
+    alignItems: "flex-start",
+    gap: "8px",
+    fontSize: "13px",
+    color: "#262E2A",
+    marginBottom: "14px",
+    cursor: "pointer",
   },
   page: { padding: "16px", paddingBottom: "80px", maxWidth: "600px", margin: "0 auto" },
   header: {
