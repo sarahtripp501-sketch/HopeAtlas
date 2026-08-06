@@ -332,6 +332,12 @@ export default function DocumentsPage() {
               </button>
             </div>
 
+            <p style={styles.hipaaNotice}>
+              Uploaded documents are stored securely and may be processed by AI to generate a
+              plain-language summary. Hope Atlas is not currently HIPAA-certified — if that
+              matters to you, avoid uploading documents containing sensitive medical records.
+            </p>
+
             <select
               style={styles.input}
               value={category}
@@ -529,6 +535,16 @@ function DocumentDetail({ doc, onBack, onOpen, onDelete, onRetry, onUpdated }) {
 }
 
 const styles = {
+  hipaaNotice: {
+    fontSize: "12px",
+    color: "#6E726A",
+    lineHeight: 1.5,
+    background: "#F5F2EA",
+    border: "1px solid #E1DDD2",
+    borderRadius: "8px",
+    padding: "10px 12px",
+    marginBottom: "12px",
+  },
   page: { padding: "16px", paddingBottom: "80px", maxWidth: "600px", margin: "0 auto" },
   header: {
     display: "flex",
