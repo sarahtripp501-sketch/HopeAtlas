@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { User, Loader2 } from "lucide-react";
 import { getOrCreateSessionId, getProfile, saveProfile } from "../../lib/supabase";
+import { DIAGNOSIS_ALIASES } from "../../lib/diagnosisAliases";
 
 const FIELDS = [
   { key: "name", label: "Name", placeholder: "e.g. Sarah" },
@@ -93,9 +94,21 @@ function DiagnosisField({ value, onChange }) {
     setCustomMode(!!value && !CANCER_TYPES.includes(value));
   }, [value]);
 
-  const filtered = query
-    ? CANCER_TYPES.filter((c) => c.toLowerCase().includes(query.toLowerCase()))
-    : CANCER_TYPES;
+  const q = query.trim().toLowerCase();
+
+  function typeMatchesQuery(typeName) {
+    if (!q) return true;
+    if (typeName.toLowerCase().includes(q)) return true;
+
+    for (const alias in DIAGNOSIS_ALIASES) {
+      if (!(alias.includes(q) || q.includes(alias))) continue;
+      const replacements = DIAGNOSIS_ALIASES[alias];
+      if (replacements.some((r) => typeName.toLowerCase().includes(r))) return true;
+    }
+    return false;
+  }
+
+  const filtered = CANCER_TYPES.filter(typeMatchesQuery);
 
   function selectType(type) {
     if (type === "__other__") {
@@ -138,7 +151,7 @@ function DiagnosisField({ value, onChange }) {
     <div style={{ position: "relative" }}>
       <input
         style={styles.input}
-        placeholder="Start typing to search, e.g. Breast"
+        placeholder="Search, e.g. Breast or GBM"
         value={query}
         onChange={(e) => {
           setQuery(e.target.value);
