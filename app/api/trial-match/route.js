@@ -50,6 +50,7 @@ export async function POST(req) {
       '{"trials":[...]}. ' +
       "Each trial object shaped: {\"name\":string,\"url\":string,\"match_percent\":number (0-100, your estimate of fit based on the profile given),\"reasons\":[string,...] (up to 5 short phrases explaining why it matched, e.g. \"Stage IV Breast Cancer\", \"HER2 Positive\", \"Prior chemotherapy\", \"Within 25 miles\"),\"still_needed\":[string,...] (up to 3 short phrases for missing info that would help confirm eligibility, e.g. \"Insurance status\", \"Confirm current biomarker status\")}. " +
       "Only include real, currently-recruiting or soon-to-recruit trials found via search with a real, working URL — never invent trial names or URLs. " +
+      "Never state or imply that the person qualifies, is eligible, or is a definitive match — trial eligibility can only be confirmed by the trial's own care team after a real screening. Keep each reason a short, neutral fact fragment (e.g. \"Stage IV Breast Cancer\", \"HER2 Positive\") rather than a declarative sentence like \"You qualify because...\" or \"You are eligible for...\". " +
       "Order the array by match_percent descending. Return up to 8 trials. " +
       "If nothing relevant is found, return an empty array rather than guessing. " +
       "Never give medical advice — only explain match reasoning in plain, approachable language.";
