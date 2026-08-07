@@ -15,6 +15,7 @@ const CATEGORIES = [
   "Insurance Letters",
   "Clinical Trial Documents",
   "Medical Bills",
+  "Other",
 ];
 
 // Supabase Storage rejects object keys containing spaces or special Unicode

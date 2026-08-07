@@ -58,6 +58,7 @@ export default function CareCirclePage() {
   const [wallMessages, setWallMessages] = useState([]);
   const [nextAppointment, setNextAppointment] = useState(null);
   const [activeMeds, setActiveMeds] = useState([]);
+  const [recentCaregiverActivity, setRecentCaregiverActivity] = useState(null);
   const [loading, setLoading] = useState(true);
 
   const [showMemberForm, setShowMemberForm] = useState(false);
@@ -96,7 +97,7 @@ export default function CareCirclePage() {
     const sessionId = await getOrCreateSessionId();
     const today = new Date().toISOString().slice(0, 10);
 
-    const [mRes, tRes, uRes, wRes, apptRes, medRes] = await Promise.all([
+    const [mRes, tRes, uRes, wRes, apptRes, medRes, recentDocRes, recentApptRes, recentPickupRes] = await Promise.all([
       supabase.from("care_circle_members").select("*").eq("session_id", sessionId).order("id"),
       supabase.from("care_tasks").select("*").eq("session_id", sessionId).order("created_at", { ascending: false }),
       supabase.from("care_updates").select("*").eq("session_id", sessionId).order("created_at", { ascending: false }),
@@ -109,6 +110,30 @@ export default function CareCirclePage() {
         .order("appt_date", { ascending: true })
         .limit(1),
       supabase.from("medications").select("*").eq("session_id", sessionId).eq("status", "Active"),
+      // Recent caregiver activity — the Today card previously only ever
+      // showed 4 fixed stats and never reflected a caregiver uploading a
+      // document, adding an appointment, or confirming a pickup at all.
+      supabase
+        .from("documents")
+        .select("file_name, uploaded_by, uploaded_at")
+        .eq("session_id", sessionId)
+        .not("uploaded_by", "is", null)
+        .order("uploaded_at", { ascending: false })
+        .limit(1),
+      supabase
+        .from("appointments")
+        .select("title, created_by, created_at")
+        .eq("session_id", sessionId)
+        .not("created_by", "is", null)
+        .order("created_at", { ascending: false })
+        .limit(1),
+      supabase
+        .from("medications")
+        .select("name, pickup_confirmed_by, pickup_confirmed_at")
+        .eq("session_id", sessionId)
+        .not("pickup_confirmed_by", "is", null)
+        .order("pickup_confirmed_at", { ascending: false })
+        .limit(1),
     ]);
 
     setMembers(mRes.data || []);
@@ -117,6 +142,17 @@ export default function CareCirclePage() {
     setWallMessages(wRes.data || []);
     setNextAppointment(apptRes.data && apptRes.data.length > 0 ? apptRes.data[0] : null);
     setActiveMeds(medRes.data || []);
+
+    const candidates = [];
+    const doc = recentDocRes.data?.[0];
+    if (doc) candidates.push({ at: doc.uploaded_at, text: `${doc.uploaded_by} uploaded "${doc.file_name}"` });
+    const appt = recentApptRes.data?.[0];
+    if (appt) candidates.push({ at: appt.created_at, text: `${appt.created_by} added an appointment: ${appt.title}` });
+    const pickup = recentPickupRes.data?.[0];
+    if (pickup) candidates.push({ at: pickup.pickup_confirmed_at, text: `${pickup.pickup_confirmed_by} confirmed pickup of ${pickup.name}` });
+    candidates.sort((a, b) => new Date(b.at) - new Date(a.at));
+    setRecentCaregiverActivity(candidates.length > 0 ? candidates[0].text : null);
+
     setLoading(false);
   }
 
@@ -435,6 +471,12 @@ async function handleDeleteWallMessage(id) {
               <span style={styles.todayDot} />
               {updates.length > 0 ? `Latest update: ${updates[0].message.slice(0, 50)}${updates[0].message.length > 50 ? "…" : ""}` : "No updates yet"}
             </div>
+            {recentCaregiverActivity && (
+              <div style={styles.todayRow}>
+                <span style={styles.todayDot} />
+                {recentCaregiverActivity}
+              </div>
+            )}
           </div>
 
           <div style={{ ...styles.sectionLabel, marginTop: "26px" }}>Ask for help</div>

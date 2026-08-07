@@ -21,6 +21,17 @@ export default function FamilyViewPage() {
   const [documents, setDocuments] = useState([]);
   const [trials, setTrials] = useState([]);
   const [healthDetails, setHealthDetails] = useState(null);
+
+  const [showUploadForm, setShowUploadForm] = useState(false);
+  const [uploadCategory, setUploadCategory] = useState("Other");
+  const [uploadFile, setUploadFile] = useState(null);
+  const [uploading, setUploading] = useState(false);
+
+  const [showApptForm, setShowApptForm] = useState(false);
+  const [apptTitle, setApptTitle] = useState("");
+  const [apptDate, setApptDate] = useState("");
+  const [apptTime, setApptTime] = useState("");
+  const [savingAppt, setSavingAppt] = useState(false);
   const [notFound, setNotFound] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -100,6 +111,90 @@ export default function FamilyViewPage() {
     }
   }
 
+  function fileToBase64(f) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result.split(",")[1]);
+      reader.onerror = reject;
+      reader.readAsDataURL(f);
+    });
+  }
+
+  async function handleUploadDocument() {
+    if (!uploadFile) return;
+    setUploading(true);
+    try {
+      const base64Data = await fileToBase64(uploadFile);
+      const res = await fetch("/api/family-upload-document", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          token,
+          base64Data,
+          mediaType: uploadFile.type,
+          fileName: uploadFile.name,
+          category: uploadCategory,
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        console.error(data.error);
+        setUploading(false);
+        return;
+      }
+      setUploadFile(null);
+      setShowUploadForm(false);
+      await loadData();
+    } catch (err) {
+      console.error(err);
+    }
+    setUploading(false);
+  }
+
+  async function handleAddAppointment() {
+    if (!apptTitle || !apptDate || !apptTime) return;
+    setSavingAppt(true);
+    try {
+      const res = await fetch("/api/family-add-appointment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, title: apptTitle, apptDate, apptTime }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        console.error(data.error);
+        setSavingAppt(false);
+        return;
+      }
+      setApptTitle("");
+      setApptDate("");
+      setApptTime("");
+      setShowApptForm(false);
+      await loadData();
+    } catch (err) {
+      console.error(err);
+    }
+    setSavingAppt(false);
+  }
+
+  async function handleConfirmPickup(medicationId) {
+    try {
+      const res = await fetch("/api/family-confirm-pickup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, medicationId }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        console.error(data.error);
+        return;
+      }
+      await loadData();
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
   if (loading) return <div style={styles.page}>Loading...</div>;
 
   if (notFound) {
@@ -137,20 +232,48 @@ export default function FamilyViewPage() {
         </>
       )}
 
-      {member.view_appointments && (
+      {(member.view_appointments || member.add_appointments) && (
         <>
-          <div style={styles.sectionLabel}>Appointments</div>
-          {appointments.length === 0 && <p style={styles.empty}>No appointments to show.</p>}
-          <div style={styles.list}>
-            {appointments.map((a) => (
-              <div key={a.id} style={styles.card}>
-                <div style={styles.cardCategory}>{a.title}</div>
-                <div style={styles.cardMessage}>
-                  {a.appt_date} at {a.appt_time}
-                </div>
-              </div>
-            ))}
+          <div style={styles.sectionHeaderRow}>
+            <div style={styles.sectionLabel}>Appointments</div>
+            {member.add_appointments && (
+              <button style={styles.smallAddButton} onClick={() => setShowApptForm((s) => !s)}>
+                + Add
+              </button>
+            )}
           </div>
+
+          {showApptForm && (
+            <div style={styles.inlineForm}>
+              <input
+                style={styles.input}
+                placeholder="Title (e.g. Oncology follow-up)"
+                value={apptTitle}
+                onChange={(e) => setApptTitle(e.target.value)}
+              />
+              <input style={styles.input} type="date" value={apptDate} onChange={(e) => setApptDate(e.target.value)} />
+              <input style={styles.input} type="time" value={apptTime} onChange={(e) => setApptTime(e.target.value)} />
+              <button style={styles.saveButton} onClick={handleAddAppointment} disabled={savingAppt}>
+                {savingAppt ? "Saving…" : "Save appointment"}
+              </button>
+            </div>
+          )}
+
+          {member.view_appointments && (
+            <>
+              {appointments.length === 0 && <p style={styles.empty}>No appointments to show.</p>}
+              <div style={styles.list}>
+                {appointments.map((a) => (
+                  <div key={a.id} style={styles.card}>
+                    <div style={styles.cardCategory}>{a.title}</div>
+                    <div style={styles.cardMessage}>
+                      {a.appt_date} at {a.appt_time}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
         </>
       )}
 
@@ -161,9 +284,22 @@ export default function FamilyViewPage() {
           <div style={styles.list}>
             {medications.map((m) => (
               <div key={m.id} style={styles.card}>
-                <div style={styles.cardCategory}>{m.name}</div>
-                <div style={styles.cardMessage}>
-                  {[m.dosage, m.frequency].filter(Boolean).join(" · ")}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                  <div>
+                    <div style={styles.cardCategory}>{m.name}</div>
+                    <div style={styles.cardMessage}>
+                      {[m.dosage, m.frequency].filter(Boolean).join(" · ")}
+                    </div>
+                  </div>
+                  {member.confirm_medication_pickup && (
+                    m.pickup_confirmed_at ? (
+                      <span style={styles.pickedUpBadge}>Picked up</span>
+                    ) : (
+                      <button style={styles.claimButton} onClick={() => handleConfirmPickup(m.id)}>
+                        Confirm pickup
+                      </button>
+                    )
+                  )}
                 </div>
               </div>
             ))}
@@ -173,7 +309,31 @@ export default function FamilyViewPage() {
 
       {member.view_documents && (
         <>
-          <div style={styles.sectionLabel}>Medical documents</div>
+          <div style={styles.sectionHeaderRow}>
+            <div style={styles.sectionLabel}>Medical documents</div>
+            {member.upload_documents && (
+              <button style={styles.smallAddButton} onClick={() => setShowUploadForm((s) => !s)}>
+                + Upload
+              </button>
+            )}
+          </div>
+
+          {showUploadForm && (
+            <div style={styles.inlineForm}>
+              <select style={styles.input} value={uploadCategory} onChange={(e) => setUploadCategory(e.target.value)}>
+                <option value="Other">Other</option>
+                <option value="Pathology Reports">Pathology Reports</option>
+                <option value="Imaging Reports">Imaging Reports</option>
+                <option value="Lab Results">Lab Results</option>
+                <option value="Insurance Letters">Insurance Letters</option>
+              </select>
+              <input type="file" accept=".pdf,.png,.jpg,.jpeg" onChange={(e) => setUploadFile(e.target.files[0])} style={{ marginBottom: "10px" }} />
+              <button style={styles.saveButton} onClick={handleUploadDocument} disabled={uploading || !uploadFile}>
+                {uploading ? "Uploading…" : "Upload document"}
+              </button>
+            </div>
+          )}
+
           {documents.length === 0 && <p style={styles.empty}>No documents to show.</p>}
           <div style={styles.list}>
             {documents.map((d) => (
@@ -269,6 +429,38 @@ export default function FamilyViewPage() {
 }
 
 const styles = {
+  sectionHeaderRow: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    margin: "18px 0 8px",
+  },
+  smallAddButton: {
+    background: "#111",
+    color: "#fff",
+    border: "none",
+    borderRadius: "16px",
+    padding: "5px 12px",
+    fontSize: "12px",
+    fontWeight: 600,
+    cursor: "pointer",
+  },
+  inlineForm: {
+    border: "1px solid #E1DDD2",
+    borderRadius: "10px",
+    padding: "12px 14px",
+    background: "#fff",
+    marginBottom: "10px",
+  },
+  pickedUpBadge: {
+    fontSize: "11px",
+    fontWeight: 700,
+    color: "#0F6E56",
+    background: "#E1F5EE",
+    padding: "3px 8px",
+    borderRadius: "12px",
+    flexShrink: 0,
+  },
   page: { padding: "16px", paddingBottom: "60px", maxWidth: "600px", margin: "0 auto" },
   headerBlock: { marginBottom: "18px" },
   heading: { fontSize: "20px", fontWeight: 700 },
