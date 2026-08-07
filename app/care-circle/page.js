@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { supabase, getOrCreateSessionId } from "../../lib/supabase";
 import { sendCareUpdateEmails } from "../actions/sendCareUpdateEmail";
+import { sendInviteEmail } from "../actions/sendInviteEmail";
 
 const TEMPLATES = [
   { label: "😊 Feeling Better", text: "Feeling better today, thank you for the support." },
@@ -178,17 +179,27 @@ export default function CareCirclePage() {
         .eq("session_id", sessionId);
       if (error) return console.error(error);
     } else {
+      const shareToken = randomToken();
       const { error } = await supabase.from("care_circle_members").insert({
         session_id: sessionId,
         name,
         relationship,
         email,
         phone,
-        share_token: randomToken(),
+        share_token: shareToken,
         expires_at: expiresAt || null,
         ...perms,
       });
       if (error) return console.error(error);
+
+      // Auto-send the invite link, rather than making the patient copy and
+      // send it themselves — only for brand-new members with an email on file.
+      if (email) {
+        const shareUrl = `${window.location.origin}/family/${shareToken}`;
+        sendInviteEmail({ name, email, shareUrl }).catch((err) =>
+          console.error("Invite email failed:", err)
+        );
+      }
     }
 
     setShowMemberForm(false);

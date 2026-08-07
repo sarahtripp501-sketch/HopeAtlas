@@ -18,6 +18,9 @@ export default function FamilyViewPage() {
   const [appointments, setAppointments] = useState([]);
   const [medications, setMedications] = useState([]);
   const [tasks, setTasks] = useState([]);
+  const [documents, setDocuments] = useState([]);
+  const [trials, setTrials] = useState([]);
+  const [healthDetails, setHealthDetails] = useState(null);
   const [notFound, setNotFound] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -47,6 +50,9 @@ export default function FamilyViewPage() {
       setAppointments(data.appointments || []);
       setMedications(data.medications || []);
       setTasks(data.tasks || []);
+      setDocuments(data.documents || []);
+      setTrials(data.trials || []);
+      setHealthDetails(data.healthDetails || null);
     } catch (err) {
       console.error(err);
       setNotFound(true);
@@ -161,6 +167,61 @@ export default function FamilyViewPage() {
                 </div>
               </div>
             ))}
+          </div>
+        </>
+      )}
+
+      {member.view_documents && (
+        <>
+          <div style={styles.sectionLabel}>Medical documents</div>
+          {documents.length === 0 && <p style={styles.empty}>No documents to show.</p>}
+          <div style={styles.list}>
+            {documents.map((d) => (
+              <div key={d.id} style={styles.card}>
+                <div style={styles.cardCategory}>{d.category}</div>
+                {d.signedUrl ? (
+                  <a href={d.signedUrl} target="_blank" rel="noopener noreferrer" style={styles.cardMessage}>
+                    {d.file_name}
+                  </a>
+                ) : (
+                  <div style={styles.cardMessage}>{d.file_name}</div>
+                )}
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {member.view_trials && (
+        <>
+          <div style={styles.sectionLabel}>Saved clinical trials</div>
+          {trials.length === 0 && <p style={styles.empty}>No saved trials to show.</p>}
+          <div style={styles.list}>
+            {trials.map((t) => (
+              <div key={t.id} style={styles.card}>
+                <a href={t.trial_url} target="_blank" rel="noopener noreferrer" style={styles.cardCategory}>
+                  {t.trial_name}
+                </a>
+                {t.match_reason && <div style={styles.cardMessage}>{t.match_reason}</div>}
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {member.view_private_health_details && healthDetails && (
+        <>
+          <div style={styles.sectionLabel}>Health details</div>
+          <div style={styles.card}>
+            {healthDetails.diagnosis && <div style={styles.cardMessage}>Diagnosis: {healthDetails.diagnosis}</div>}
+            {healthDetails.stage && <div style={styles.cardMessage}>Stage: {healthDetails.stage}</div>}
+            {healthDetails.grade && <div style={styles.cardMessage}>Grade: {healthDetails.grade}</div>}
+            {healthDetails.genetic_variants && <div style={styles.cardMessage}>Genetic variants: {healthDetails.genetic_variants}</div>}
+            {healthDetails.biomarkers && healthDetails.biomarkers.length > 0 && (
+              <div style={styles.cardMessage}>
+                Biomarkers: {healthDetails.biomarkers.map((b) => `${b.name}: ${b.status}`).join(", ")}
+              </div>
+            )}
           </div>
         </>
       )}
