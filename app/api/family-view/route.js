@@ -43,6 +43,7 @@ export async function GET(request) {
       view_medications: member.view_medications,
       view_documents: member.view_documents,
       view_trials: member.view_trials,
+      view_financial: member.view_financial,
       view_private_health_details: member.view_private_health_details,
       create_tasks: member.create_tasks,
       upload_documents: member.upload_documents,
@@ -55,6 +56,7 @@ export async function GET(request) {
     tasks: [],
     documents: [],
     trials: [],
+    financial: [],
     healthDetails: null,
   };
 
@@ -119,6 +121,15 @@ export async function GET(request) {
       .eq("session_id", member.session_id)
       .order("id", { ascending: false });
     result.trials = data || [];
+  }
+
+  if (member.view_financial) {
+    const { data } = await supabaseAdmin
+      .from("saved_grants")
+      .select("*")
+      .eq("session_id", member.session_id)
+      .order("id", { ascending: false });
+    result.financial = data || [];
   }
 
   if (member.view_private_health_details) {

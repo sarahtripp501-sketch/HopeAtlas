@@ -20,6 +20,7 @@ export default function FamilyViewPage() {
   const [tasks, setTasks] = useState([]);
   const [documents, setDocuments] = useState([]);
   const [trials, setTrials] = useState([]);
+  const [financial, setFinancial] = useState([]);
   const [healthDetails, setHealthDetails] = useState(null);
 
   const [showUploadForm, setShowUploadForm] = useState(false);
@@ -63,6 +64,7 @@ export default function FamilyViewPage() {
       setTasks(data.tasks || []);
       setDocuments(data.documents || []);
       setTrials(data.trials || []);
+      setFinancial(data.financial || []);
       setHealthDetails(data.healthDetails || null);
     } catch (err) {
       console.error(err);
@@ -363,6 +365,23 @@ export default function FamilyViewPage() {
                   {t.trial_name}
                 </a>
                 {t.match_reason && <div style={styles.cardMessage}>{t.match_reason}</div>}
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {member.view_financial && (
+        <>
+          <div style={styles.sectionLabel}>Saved financial assistance</div>
+          {financial.length === 0 && <p style={styles.empty}>No saved programs to show.</p>}
+          <div style={styles.list}>
+            {financial.map((g) => (
+              <div key={g.id} style={styles.card}>
+                <a href={g.url} target="_blank" rel="noopener noreferrer" style={styles.cardCategory}>
+                  {g.name}
+                </a>
+                {g.desc && <div style={styles.cardMessage}>{g.desc}</div>}
               </div>
             ))}
           </div>

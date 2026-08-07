@@ -79,6 +79,7 @@ export default function CareCirclePage() {
     create_tasks: true,
     view_private_health_details: false,
     view_trials: false,
+    view_financial: false,
     emergency_access: false,
   });
   const [copiedId, setCopiedId] = useState(null);
@@ -175,6 +176,7 @@ export default function CareCirclePage() {
       create_tasks: true,
       view_private_health_details: false,
       view_trials: false,
+      view_financial: false,
       emergency_access: false,
     });
     setShowMemberForm(true);
@@ -198,6 +200,7 @@ export default function CareCirclePage() {
       create_tasks: m.create_tasks,
       view_private_health_details: m.view_private_health_details,
       view_trials: m.view_trials,
+      view_financial: m.view_financial,
       emergency_access: m.emergency_access,
     });
     setShowMemberForm(true);
@@ -694,6 +697,7 @@ function MemberForm({ editingId, name, setName, relationship, setRelationship, e
           ["create_tasks", "Create tasks"],
           ["view_private_health_details", "View private health details"],
           ["view_trials", "View clinical trial updates"],
+          ["view_financial", "View financial assistance matches"],
           ["emergency_access", "Emergency access"],
         ].map(([key, label]) => (
           <label key={key} style={styles.checkboxRow}>
