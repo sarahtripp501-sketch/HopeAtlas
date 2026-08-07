@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import { ExternalLink, Star, Heart, HandCoins, Microscope, Info, BedDouble, Users } from "lucide-react";
-import { TYPES, CATS, ORGS, CURATED_VERIFIED_DATE } from "../lib/orgData";
-import { getSavedOrgs, saveOrg, unsaveOrg, getOrCreateSessionId, getCustomOrgs } from "../lib/supabase";
+import { TYPES, CATS, ORGS } from "../lib/orgData";
+import { getSavedOrgs, saveOrg, unsaveOrg, getOrCreateSessionId, getCustomOrgs, getOrgVerifications } from "../lib/supabase";
 import ReportIssueButton from "./ReportIssueButton";
 import CancerTypePicker from "./CancerTypePicker";
 
@@ -21,6 +21,7 @@ export default function OrgDirectory() {
   const [saved, setSaved] = useState([]);
   const [sessionId, setSessionId] = useState(null);
   const [customOrgs, setCustomOrgs] = useState([]);
+  const [verifications, setVerifications] = useState({});
 
   useEffect(() => {
     (async () => {
@@ -28,6 +29,7 @@ export default function OrgDirectory() {
       setSessionId(id);
       getSavedOrgs(id).then(setSaved).catch(() => setSaved([]));
       getCustomOrgs().then(setCustomOrgs).catch(() => setCustomOrgs([]));
+      getOrgVerifications().then(setVerifications).catch(() => setVerifications({}));
     })();
   }, []);
 
@@ -57,10 +59,19 @@ export default function OrgDirectory() {
 
   const curated = useMemo(
     () => [
-      ...ORGS.map(([name, url, desc, cats, types]) => ({ name, url, desc, cats, types, verified: CURATED_VERIFIED_DATE })),
-      ...customOrgs,
+      ...ORGS.map(([name, url, desc, cats, types]) => ({
+        name,
+        url,
+        desc,
+        cats,
+        types,
+        // No fabricated date — only shows a real "Last verified" date if
+        // someone has actually checked this specific org via /admin.
+        verified: verifications[url] || null,
+      })),
+      ...customOrgs.map((o) => ({ ...o, verified: verifications[o.url] || o.verified || null })),
     ],
-    [customOrgs]
+    [customOrgs, verifications]
   );
 
   const shown = useMemo(() => {

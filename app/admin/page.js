@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Star, MessageSquare, Lightbulb, Flag, Lock, Trash2 } from "lucide-react";
+import { Star, MessageSquare, Lightbulb, Flag, Lock, Trash2, CheckCircle2 } from "lucide-react";
+import { ORGS } from "../../lib/orgData";
+import { supabase } from "../../lib/supabase";
 
 export default function AdminPage() {
   const [unlocked, setUnlocked] = useState(false);
@@ -18,6 +20,33 @@ export default function AdminPage() {
   const [featureSuggestions, setFeatureSuggestions] = useState([]);
   const [reports, setReports] = useState([]);
   const [orgSuggestions, setOrgSuggestions] = useState([]);
+  const [verifications, setVerifications] = useState({});
+
+  async function loadVerifications() {
+    try {
+      const { data } = await supabase.from("org_verifications").select("org_url, verified_at");
+      const map = {};
+      (data || []).forEach((row) => {
+        map[row.org_url] = row.verified_at;
+      });
+      setVerifications(map);
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  async function handleVerifyOrg(org) {
+    try {
+      await fetch("/api/admin-verify-org", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password, url: org.url, name: org.name }),
+      });
+      await loadVerifications();
+    } catch (err) {
+      console.error(err);
+    }
+  }
 
   async function loadSuggestions(pw) {
     try {
@@ -71,6 +100,7 @@ export default function AdminPage() {
 
       setPassword(passcodeInput);
       await loadSuggestions(passcodeInput);
+      await loadVerifications();
       setUnlocked(true);
     } catch (err) {
       console.error(err);
@@ -168,6 +198,7 @@ export default function AdminPage() {
           ["features", `Feature Suggestions (${featureSuggestions.length})`],
           ["reports", `Resource Reports (${reports.length})`],
           ["orgs", `Org Suggestions (${orgSuggestions.length})`],
+          ["curated", `Curated Orgs (${Object.keys(verifications).length}/${ORGS.length} verified)`],
         ].map(([key, label]) => (
           <button
             key={key}
@@ -310,6 +341,42 @@ export default function AdminPage() {
                 </button>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {!loading && tab === "curated" && (
+        <div>
+          <div style={styles.sectionHeader}>
+            <CheckCircle2 size={16} style={{ marginRight: "8px" }} />
+            <span style={styles.sectionLabel}>Curated organizations</span>
+          </div>
+          <p style={{ fontSize: "12px", color: "#9A9A90", marginBottom: "12px" }}>
+            No fabricated dates — an org only shows "Last verified" on Resources once you've
+            actually checked it and marked it here.
+          </p>
+          <div style={styles.list}>
+            {ORGS.map(([name, url]) => {
+              const verifiedAt = verifications[url];
+              return (
+                <div key={url} style={styles.card}>
+                  <div style={{ flex: 1 }}>
+                    <div style={styles.cardTitle}>{name}</div>
+                    <a href={url} target="_blank" rel="noopener noreferrer" style={styles.cardLink}>
+                      {url}
+                    </a>
+                    <div style={styles.cardMeta}>
+                      {verifiedAt
+                        ? `Verified ${new Date(verifiedAt).toLocaleDateString()}`
+                        : "Not yet verified"}
+                    </div>
+                  </div>
+                  <button style={styles.iconButton} onClick={() => handleVerifyOrg({ name, url })}>
+                    <CheckCircle2 size={14} />
+                  </button>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
