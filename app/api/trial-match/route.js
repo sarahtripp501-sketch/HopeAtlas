@@ -1,9 +1,23 @@
 import { NextResponse } from "next/server";
+import zipcodes from "zipcodes";
 import { createScopedClient } from "../../../lib/supabaseRequestClient";
 
 const EMPTY_RESULT = { trials: [] };
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 const CTGOV_BASE = "https://clinicaltrials.gov/api/v2/studies";
+const DEFAULT_RADIUS_MILES = 100;
+
+// Converts a US ZIP to lat/lng entirely server-side, using a bundled
+// dataset — no third-party geocoding API, so ZIP codes never leave the
+// server. Returns null for anything not a recognized 5-digit US ZIP
+// (foreign postal codes, typos, etc.) rather than throwing.
+function zipToGeoFilter(zip, radiusMiles = DEFAULT_RADIUS_MILES) {
+  if (!zip) return null;
+  const loc = zipcodes.lookup(zip);
+  if (!loc || !loc.latitude || !loc.longitude) return null;
+  return `distance(${loc.latitude},${loc.longitude},${radiusMiles}mi)`;
+}
+
 
 // Profile's diagnosis picker stores compound labels like
 // "Brain tumor - Glioblastoma" or "Leukemia - Acute myeloid (AML)" — sending
@@ -37,13 +51,16 @@ function buildFingerprint({ cancerType, stage, biomarkers, currentTreatment, pre
   });
 }
 
-async function fetchTrialsForCondition(condTerm) {
+async function fetchTrialsForCondition(condTerm, geoFilter) {
   const params = new URLSearchParams({
     "query.cond": condTerm,
     "filter.overallStatus": "RECRUITING",
     pageSize: "20",
     format: "json",
   });
+  if (geoFilter) {
+    params.set("filter.geo", geoFilter);
+  }
 
   const res = await fetch(`${CTGOV_BASE}?${params.toString()}`);
   if (!res.ok) {
@@ -87,21 +104,36 @@ function mapStudy(s) {
 // Fetches real, currently-recruiting trials directly from ClinicalTrials.gov's
 // official public API — no API key needed, free, and every result returned
 // here is guaranteed to actually exist with a real NCT ID and real URL.
-async function fetchRealTrials({ cancerType, query }) {
+async function fetchRealTrials({ cancerType, query, zip }) {
   const specificTerm = query || extractSpecificTerm(cancerType) || "cancer";
-  let studies = await fetchTrialsForCondition(specificTerm);
+  const geoFilter = query ? null : zipToGeoFilter(zip); // manual browse searches ignore location
 
-  // If the specific term found nothing, and there's a broader category to
-  // fall back to (and this wasn't a manual keyword search), retry with that
-  // instead of returning empty.
+  let studies = [];
+  let usedGeo = false;
+
+  if (geoFilter) {
+    studies = await fetchTrialsForCondition(specificTerm, geoFilter);
+    usedGeo = true;
+  }
+
+  // Nothing found nearby (or no usable ZIP at all) — try the same specific
+  // term with no distance limit before giving up on it entirely. A rare
+  // diagnosis may genuinely have no recruiting site within range right now.
+  if (studies.length === 0) {
+    studies = await fetchTrialsForCondition(specificTerm, null);
+    usedGeo = false;
+  }
+
+  // Still nothing, and there's a broader category to fall back to (and this
+  // wasn't a manual keyword search) — try that instead of returning empty.
   if (studies.length === 0 && !query) {
     const broadTerm = extractBroadTerm(cancerType);
     if (broadTerm && broadTerm.toLowerCase() !== specificTerm.toLowerCase()) {
-      studies = await fetchTrialsForCondition(broadTerm);
+      studies = await fetchTrialsForCondition(broadTerm, null);
     }
   }
 
-  return studies.map(mapStudy).filter((t) => t.nctId && t.url);
+  return { trials: studies.map(mapStudy).filter((t) => t.nctId && t.url), usedGeo };
 }
 
 
@@ -131,7 +163,7 @@ export async function POST(req) {
       }
     }
 
-    const realTrials = await fetchRealTrials({ cancerType, query });
+    const { trials: realTrials, usedGeo } = await fetchRealTrials({ cancerType, query, zip });
 
     if (realTrials.length === 0) {
       const empty = { trials: [] };
@@ -149,6 +181,7 @@ export async function POST(req) {
       "Only comment on the trials provided in the data below; every trial you return must come from that list with its nctId, name, and url copied exactly. " +
       "Return ONLY a JSON object (no prose, no code fences) shaped exactly: {\"trials\":[...]}. " +
       "Each trial object shaped: {\"nctId\":string (copy exactly from input),\"name\":string (copy the title exactly from input),\"url\":string (copy exactly from input),\"match_percent\":number (0-100, your estimate of fit based on the profile and this trial's real eligibility/condition/intervention text),\"reasons\":[string,...] (up to 5 short neutral fact fragments grounded only in the provided text, e.g. \"Recruiting for Stage IV\", \"Includes prior chemotherapy patients\" — never a declarative verdict like \"you qualify\"),\"still_needed\":[string,...] (up to 3 short phrases for info that would help confirm eligibility)}. " +
+      "Only mention proximity or \"nearby\" in reasons if the profile explicitly states these results were filtered by distance — if it says results were NOT filtered by distance, do not claim any trial is close by, even if a location happens to be in the same state. " +
       "Order by match_percent descending. Select and return only the best-fitting 8 trials from the list below — you do not need to include every trial provided, just the ones most worth the person's attention. " +
       "Never state or imply that the person qualifies, is eligible, or is a definitive match for any trial — eligibility can only be confirmed by that trial's own care team after real screening.";
 
@@ -159,6 +192,7 @@ export async function POST(req) {
 - Current treatment: ${currentTreatment || "not specified"}
 - Previous treatments: ${previousTreatments && previousTreatments.length ? previousTreatments.join(", ") : "not specified"}
 - Location (ZIP): ${zip || "not specified"}
+- These results ${usedGeo ? `were already filtered to within ${DEFAULT_RADIUS_MILES} miles of this ZIP` : "were NOT filtered by distance — either no ZIP was usable, or nothing recruiting was found nearby, so this list is nationwide"}.
 
 Real candidate trials retrieved from ClinicalTrials.gov (only comment on these, do not invent others):
 ${JSON.stringify(realTrials, null, 2)}`;
