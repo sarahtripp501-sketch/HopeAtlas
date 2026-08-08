@@ -21,6 +21,7 @@ export default function FamilyViewPage() {
   const [documents, setDocuments] = useState([]);
   const [trials, setTrials] = useState([]);
   const [financial, setFinancial] = useState([]);
+  const [aiConversations, setAiConversations] = useState([]);
   const [healthDetails, setHealthDetails] = useState(null);
 
   const [showUploadForm, setShowUploadForm] = useState(false);
@@ -65,6 +66,7 @@ export default function FamilyViewPage() {
       setDocuments(data.documents || []);
       setTrials(data.trials || []);
       setFinancial(data.financial || []);
+      setAiConversations(data.aiConversations || []);
       setHealthDetails(data.healthDetails || null);
     } catch (err) {
       console.error(err);
@@ -382,6 +384,27 @@ export default function FamilyViewPage() {
                   {g.name}
                 </a>
                 {g.desc && <div style={styles.cardMessage}>{g.desc}</div>}
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {member.view_ai_conversations && (
+        <>
+          <div style={styles.sectionLabel}>AI Navigator conversation history</div>
+          {aiConversations.length === 0 && <p style={styles.empty}>No conversation history to show.</p>}
+          <div style={styles.list}>
+            {aiConversations.map((c, i) => (
+              <div
+                key={i}
+                style={{
+                  ...styles.card,
+                  background: c.role === "user" ? "#F5F2EA" : "#fff",
+                }}
+              >
+                <div style={styles.cardCategory}>{c.role === "user" ? "Question" : "Answer"}</div>
+                <div style={styles.cardMessage}>{c.message}</div>
               </div>
             ))}
           </div>

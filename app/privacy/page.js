@@ -28,6 +28,7 @@ const ALL_TABLES = [
   "resource_reports",
   "seen_alerts",
   "preferences",
+  "ai_conversations",
 ];
 
 export default function PrivacyPage() {

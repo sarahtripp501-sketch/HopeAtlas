@@ -26,6 +26,7 @@ export default function PrivacyPolicyPage() {
           <li style={styles.listItem}>Updates and messages posted within Care Circle</li>
           <li style={styles.listItem}>Notification preferences (whether you've opted into email and/or text notifications)</li>
           <li style={styles.listItem}>Cached results from clinical trial and financial assistance matching, stored temporarily to avoid repeating the same search unnecessarily</li>
+          <li style={styles.listItem}>Your questions and AI Navigator's answers, saved so your conversation history is available the next time you visit. You can clear this at any time from the AI Navigator page</li>
           <li style={styles.listItem}>Feedback, ratings, and issue reports you submit</li>
         </ul>
       </div>

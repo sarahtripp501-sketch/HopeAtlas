@@ -44,6 +44,7 @@ export async function GET(request) {
       view_documents: member.view_documents,
       view_trials: member.view_trials,
       view_financial: member.view_financial,
+      view_ai_conversations: member.view_ai_conversations,
       view_private_health_details: member.view_private_health_details,
       create_tasks: member.create_tasks,
       upload_documents: member.upload_documents,
@@ -57,6 +58,7 @@ export async function GET(request) {
     documents: [],
     trials: [],
     financial: [],
+    aiConversations: [],
     healthDetails: null,
   };
 
@@ -130,6 +132,15 @@ export async function GET(request) {
       .eq("session_id", member.session_id)
       .order("id", { ascending: false });
     result.financial = data || [];
+  }
+
+  if (member.view_ai_conversations) {
+    const { data } = await supabaseAdmin
+      .from("ai_conversations")
+      .select("role, message, created_at")
+      .eq("session_id", member.session_id)
+      .order("created_at", { ascending: true });
+    result.aiConversations = data || [];
   }
 
   if (member.view_private_health_details) {

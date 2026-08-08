@@ -80,6 +80,7 @@ export default function CareCirclePage() {
     view_private_health_details: false,
     view_trials: false,
     view_financial: false,
+    view_ai_conversations: false,
     emergency_access: false,
   });
   const [copiedId, setCopiedId] = useState(null);
@@ -177,6 +178,7 @@ export default function CareCirclePage() {
       view_private_health_details: false,
       view_trials: false,
       view_financial: false,
+      view_ai_conversations: false,
       emergency_access: false,
     });
     setShowMemberForm(true);
@@ -201,6 +203,7 @@ export default function CareCirclePage() {
       view_private_health_details: m.view_private_health_details,
       view_trials: m.view_trials,
       view_financial: m.view_financial,
+      view_ai_conversations: m.view_ai_conversations,
       emergency_access: m.emergency_access,
     });
     setShowMemberForm(true);
@@ -698,6 +701,7 @@ function MemberForm({ editingId, name, setName, relationship, setRelationship, e
           ["view_private_health_details", "View private health details"],
           ["view_trials", "View clinical trial updates"],
           ["view_financial", "View financial assistance matches"],
+          ["view_ai_conversations", "View AI Navigator conversation history"],
           ["emergency_access", "Emergency access"],
         ].map(([key, label]) => (
           <label key={key} style={styles.checkboxRow}>

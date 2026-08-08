@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Send, Loader2, Sparkles } from "lucide-react";
+import { Send, Loader2, Sparkles, Trash2 } from "lucide-react";
 import { supabase, getOrCreateSessionId, getProfile } from "../../lib/supabase";
 
 const EXAMPLE_PROMPTS = [
@@ -22,11 +22,46 @@ export default function AINavigatorPage() {
 
   useEffect(() => {
     loadContext();
+    loadHistory();
   }, []);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  async function loadHistory() {
+    const sessionId = await getOrCreateSessionId();
+    const { data } = await supabase
+      .from("ai_conversations")
+      .select("role, message, matches")
+      .eq("session_id", sessionId)
+      .order("created_at", { ascending: true });
+
+    setMessages(
+      (data || []).map((row) => ({
+        role: row.role,
+        text: row.message,
+        matches: row.matches || undefined,
+      }))
+    );
+  }
+
+  async function saveMessage(role, text, matches) {
+    const sessionId = await getOrCreateSessionId();
+    await supabase.from("ai_conversations").insert({
+      session_id: sessionId,
+      role,
+      message: text || "",
+      matches: matches || null,
+    });
+  }
+
+  async function handleClearHistory() {
+    if (!window.confirm("Clear your AI Navigator conversation history? This can't be undone.")) return;
+    const sessionId = await getOrCreateSessionId();
+    await supabase.from("ai_conversations").delete().eq("session_id", sessionId);
+    setMessages([]);
+  }
 
   async function loadContext() {
     const sessionId = await getOrCreateSessionId();
@@ -59,6 +94,7 @@ export default function AINavigatorPage() {
     setMessages((prev) => [...prev, userMsg]);
     setInput("");
     setAsking(true);
+    saveMessage("user", question, null);
 
     try {
       if (isFinancialQuestion(question)) {
@@ -81,6 +117,7 @@ export default function AINavigatorPage() {
           ...prev,
           { role: "assistant", text: "", matches: data },
         ]);
+        saveMessage("assistant", "", data);
       } else {
         const res = await fetch("/api/navigator-ask", {
           method: "POST",
@@ -89,13 +126,13 @@ export default function AINavigatorPage() {
         });
         const data = await res.json();
         setMessages((prev) => [...prev, { role: "assistant", text: data.answer || "" }]);
+        saveMessage("assistant", data.answer || "", null);
       }
     } catch (err) {
       console.error(err);
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", text: "Sorry, something went wrong. Please try again." },
-      ]);
+      const errText = "Sorry, something went wrong. Please try again.";
+      setMessages((prev) => [...prev, { role: "assistant", text: errText }]);
+      saveMessage("assistant", errText, null);
     }
     setAsking(false);
   }
@@ -103,8 +140,16 @@ export default function AINavigatorPage() {
   return (
     <div style={styles.page}>
       <div style={styles.header}>
-        <Sparkles size={20} style={{ marginRight: "8px" }} />
-        <h1 style={styles.heading}>AI Navigator</h1>
+        <div style={{ display: "flex", alignItems: "center" }}>
+          <Sparkles size={20} style={{ marginRight: "8px" }} />
+          <h1 style={styles.heading}>AI Navigator</h1>
+        </div>
+        {messages.length > 0 && (
+          <button style={styles.clearButton} onClick={handleClearHistory}>
+            <Trash2 size={13} style={{ marginRight: "4px" }} />
+            Clear history
+          </button>
+        )}
       </div>
       <p style={styles.subheading}>
         Ask about your diagnosis, treatments, biomarkers, or find support resources.
@@ -222,7 +267,19 @@ const styles = {
     flexDirection: "column",
     minHeight: "calc(100vh - 60px)",
   },
-  header: { display: "flex", alignItems: "center", marginBottom: "4px" },
+  header: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "4px" },
+  clearButton: {
+    display: "flex",
+    alignItems: "center",
+    fontSize: "12px",
+    fontWeight: 600,
+    color: "#9A9A90",
+    background: "none",
+    border: "1px solid #E1DDD2",
+    borderRadius: "16px",
+    padding: "5px 10px",
+    cursor: "pointer",
+  },
   heading: { fontSize: "20px", fontWeight: 700 },
   subheading: { fontSize: "13px", color: "#6E726A", marginBottom: "18px" },
   examples: {
