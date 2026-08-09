@@ -59,21 +59,14 @@ export default function ResourcesPage() {
         <h1 style={styles.heading}>Resources</h1>
         <p style={styles.subheading}>
           Financial aid, transportation, lodging, organizations, clinical trials,
-          medication assistance, and support groups — all in one place.
+          medication assistance, and support groups : all in one place.
         </p>
 
         <div style={styles.infoBox}>
-          <p style={{ marginTop: 0 }}>
-            <b style={{ color: "#2A2622" }}>How to read this directory.</b> Curated organizations are
-            established national nonprofits, but programs, eligibility, and contact details change —
-            confirm current details on each group's site.
-          </p>
-          <p>
-            Web results are gathered live and may contain errors; treat them
-            as leads to verify, not endorsements.
-          </p>
-          <p style={{ marginBottom: 0 }}>
-            This directory points to help; it isn't medical or financial advice.
+          <p style={{ marginTop: 0, marginBottom: 0 }}>
+            <b style={{ color: "#2A2622" }}>Matched to your profile.</b> These results come from our
+            live AI-assisted search based on your diagnosis and situation, helpful leads to
+            explore, find a vetted list below.
           </p>
         </div>
 
@@ -132,6 +125,21 @@ export default function ResourcesPage() {
 
         <div style={styles.divider} />
 
+        <div style={styles.infoBoxCurated}>
+          <p style={{ marginTop: 0 }}>
+            <b style={{ color: "#2A2622" }}>How to read this directory.</b> Curated organizations are
+            established national nonprofits, but programs, eligibility, and contact details change —
+            confirm current details on each group's site.
+          </p>
+          <p>
+            Web results are gathered live and may contain errors; treat them
+            as leads to verify, not endorsements.
+          </p>
+          <p style={{ marginBottom: 0 }}>
+            This directory points to help; it isn't medical or financial advice.
+          </p>
+        </div>
+
         <OrgDirectory />
 
         <p style={styles.suggestLine}>
@@ -176,7 +184,17 @@ const styles = {
     fontSize: "13px",
     color: "#5f6d63",
     lineHeight: 1.6,
-    marginBottom: "22px",
+    marginBottom: "18px",
+  },
+  infoBoxCurated: {
+    background: "#FFFFFF",
+    border: "1px solid #E5DFD2",
+    borderRadius: "13px",
+    padding: "15px",
+    fontSize: "13px",
+    color: "#5f6d63",
+    lineHeight: 1.6,
+    marginBottom: "18px",
   },
   divider: {
     borderTop: "1px solid #E5DFD2",

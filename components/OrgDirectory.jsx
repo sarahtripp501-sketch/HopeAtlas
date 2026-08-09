@@ -87,6 +87,17 @@ export default function OrgDirectory() {
   return (
     <div className="org">
       <div className="wrap">
+        <h2
+          style={{
+            fontFamily: "var(--font-fraunces), serif",
+            fontWeight: 500,
+            fontSize: "19px",
+            color: "#2A2622",
+            margin: "0 0 6px",
+          }}
+        >
+          Vetted organization directory
+        </h2>
         <p className="intro">
           Pick a cancer type and what kind of help you're looking for. The curated results are
           vetted national organizations.
