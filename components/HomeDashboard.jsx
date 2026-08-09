@@ -485,10 +485,13 @@ export default function HomeDashboard() {
 }
 
 function WaypointItem({ children, markerColor, filled, href, onClick, isLast }) {
+  const { border: _unusedBorder1, ...markerFilledRest } = styles.markerFilled;
+  const { border: _unusedBorder2, ...markerRingRest } = styles.markerRing;
+
   const marker = filled ? (
-    <div style={{ ...styles.markerFilled, background: markerColor, borderColor: markerColor }} />
+    <div style={{ ...markerFilledRest, background: markerColor, border: `2px solid ${markerColor}` }} />
   ) : (
-    <div style={{ ...styles.markerRing, borderColor: markerColor }}>
+    <div style={{ ...markerRingRest, border: `2px solid ${markerColor}` }}>
       <div style={{ ...styles.markerDot, background: markerColor }} />
     </div>
   );

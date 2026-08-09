@@ -362,7 +362,7 @@ const styles = {
   },
   chipOn: {
     background: "#2B4339",
-    borderColor: "#2B4339",
+    border: "1px solid #2B4339",
     color: "#FAF6F0",
   },
   chipAdd: {

@@ -135,7 +135,7 @@ const styles = {
   },
   toggleButtonOn: {
     background: "#E1F5EE",
-    borderColor: "#1D9E75",
+    border: "1px solid #1D9E75",
     color: "#0F6E56",
   },
   disclaimer: { fontSize: "12px", color: "#9A9A90", marginTop: "18px", lineHeight: 1.6 },

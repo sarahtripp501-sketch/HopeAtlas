@@ -610,7 +610,7 @@ const styles = {
     cursor: "pointer",
     color: "#6E726A",
   },
-  tabActive: { background: "#111", color: "#fff", borderColor: "#111" },
+  tabActive: { background: "#111", color: "#fff", border: "1px solid #111" },
   backButton: {
     display: "flex",
     alignItems: "center",
@@ -775,7 +775,7 @@ const styles = {
     justifyContent: "center",
     marginTop: "4px",
   },
-  checkBoxOn: { background: "#111", borderColor: "#111" },
+  checkBoxOn: { background: "#111", border: "1px solid #111" },
   extractDateInput: {
     width: "100%",
     padding: "6px 8px",

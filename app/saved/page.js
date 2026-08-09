@@ -168,7 +168,7 @@ const styles = {
     cursor: "pointer",
     color: "#6E726A",
   },
-  tabActive: { background: "#111", color: "#fff", borderColor: "#111" },
+  tabActive: { background: "#111", color: "#fff", border: "1px solid #111" },
   empty: { color: "#999", fontSize: "13.5px", textAlign: "center", marginTop: "20px", lineHeight: 1.6 },
   link: { color: "#3F628F", fontWeight: 600 },
   list: { display: "flex", flexDirection: "column", gap: "10px" },

@@ -39,6 +39,23 @@ const RELATIONSHIP_GROUPS = [
   { key: "Emergency contacts", icon: ShieldAlert },
 ];
 
+const PERMISSION_LABELS = [
+  ["view_updates", "View general updates"],
+  ["view_appointments", "View appointments"],
+  ["add_appointments", "Add appointments"],
+  ["view_medications", "View medications"],
+  ["confirm_medication_pickup", "Confirm medication pickup"],
+  ["view_documents", "View medical documents"],
+  ["upload_documents", "Upload documents"],
+  ["create_tasks", "Create tasks"],
+  ["view_private_health_details", "View private health details"],
+  ["view_trials", "View clinical trial updates"],
+  ["view_financial", "View financial assistance matches"],
+  ["view_ai_conversations", "View AI Navigator conversation history"],
+  ["emergency_access", "Emergency access"],
+];
+const PERMISSION_KEYS = PERMISSION_LABELS.map(([key]) => key);
+
 function randomToken() {
   // Uses the browser's real cryptographic random generator (not Math.random(),
   // which isn't designed to resist prediction) — this is the only credential
@@ -689,21 +706,24 @@ function MemberForm({ editingId, name, setName, relationship, setRelationship, e
         />
 
         <div style={styles.permLabel}>Permissions</div>
-        {[
-          ["view_updates", "View general updates"],
-          ["view_appointments", "View appointments"],
-          ["add_appointments", "Add appointments"],
-          ["view_medications", "View medications"],
-          ["confirm_medication_pickup", "Confirm medication pickup"],
-          ["view_documents", "View medical documents"],
-          ["upload_documents", "Upload documents"],
-          ["create_tasks", "Create tasks"],
-          ["view_private_health_details", "View private health details"],
-          ["view_trials", "View clinical trial updates"],
-          ["view_financial", "View financial assistance matches"],
-          ["view_ai_conversations", "View AI Navigator conversation history"],
-          ["emergency_access", "Emergency access"],
-        ].map(([key, label]) => (
+
+        <label style={{ ...styles.checkboxRow, ...styles.selectAllRow }}>
+          <input
+            type="checkbox"
+            checked={PERMISSION_KEYS.every((k) => perms[k])}
+            onChange={(e) => {
+              const allChecked = e.target.checked;
+              const next = { ...perms };
+              PERMISSION_KEYS.forEach((k) => {
+                next[k] = allChecked;
+              });
+              setPerms(next);
+            }}
+          />
+          Select all permissions
+        </label>
+
+        {PERMISSION_LABELS.map(([key, label]) => (
           <label key={key} style={styles.checkboxRow}>
             <input
               type="checkbox"
@@ -1081,6 +1101,12 @@ const styles = {
     display: "block",
   },
   checkboxRow: { display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", marginBottom: "8px", color: "#2A2622" },
+  selectAllRow: {
+    fontWeight: 700,
+    paddingBottom: "10px",
+    marginBottom: "12px",
+    borderBottom: "1px solid #E1DDD2",
+  },
   input: {
     width: "100%",
     padding: "10px",

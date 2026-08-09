@@ -15,7 +15,6 @@ const TREATMENT_OPTIONS = [
   "Clinical Trial Treatment",
   "Palliative / Supportive Care",
   "Active Surveillance / Watchful Waiting",
-  "Other",
 ];
 
 export default function TreatmentsPage() {
@@ -500,7 +499,7 @@ const styles = {
   },
   stageToggleOn: {
     background: "#111",
-    borderColor: "#111",
+    border: "1px solid #111",
     color: "#fff",
   },
   stageBadge: {

@@ -435,7 +435,7 @@ const styles = {
     cursor: "pointer",
     color: "#6E726A",
   },
-  tabActive: { background: "#111", color: "#fff", borderColor: "#111" },
+  tabActive: { background: "#111", color: "#fff", border: "1px solid #111" },
   empty: { color: "#999", fontSize: "14px", textAlign: "center", marginTop: "20px" },
   statRow: { display: "flex", gap: "12px", marginBottom: "24px" },
   statCard: {
