@@ -21,6 +21,19 @@ export default function AdminPage() {
   const [reports, setReports] = useState([]);
   const [orgSuggestions, setOrgSuggestions] = useState([]);
   const [verifications, setVerifications] = useState({});
+  const [connectedInterest, setConnectedInterest] = useState([]);
+
+  async function loadConnectedInterest() {
+    try {
+      const { data } = await supabase
+        .from("connected_account_interest")
+        .select("account_type, interested")
+        .eq("interested", true);
+      setConnectedInterest(data || []);
+    } catch (err) {
+      console.error(err);
+    }
+  }
 
   async function loadVerifications() {
     try {
@@ -101,6 +114,7 @@ export default function AdminPage() {
       setPassword(passcodeInput);
       await loadSuggestions(passcodeInput);
       await loadVerifications();
+      await loadConnectedInterest();
       setUnlocked(true);
     } catch (err) {
       console.error(err);
@@ -199,6 +213,7 @@ export default function AdminPage() {
           ["reports", `Resource Reports (${reports.length})`],
           ["orgs", `Org Suggestions (${orgSuggestions.length})`],
           ["curated", `Curated Orgs (${Object.keys(verifications).length}/${ORGS.length} verified)`],
+          ["connected", `Connected Accounts Interest (${connectedInterest.length})`],
         ].map(([key, label]) => (
           <button
             key={key}
@@ -377,6 +392,38 @@ export default function AdminPage() {
                 </div>
               );
             })}
+          </div>
+        </div>
+      )}
+
+      {!loading && tab === "connected" && (
+        <div>
+          <div style={styles.sectionHeader}>
+            <CheckCircle2 size={16} style={{ marginRight: "8px" }} />
+            <span style={styles.sectionLabel}>Connected accounts interest</span>
+          </div>
+          <p style={{ fontSize: "12px", color: "#9A9A90", marginBottom: "12px" }}>
+            How many people have expressed interest in each account type — Connected Health
+            Accounts doesn't sync any real data yet, so this is purely a signal for what to
+            prioritize building.
+          </p>
+          {connectedInterest.length === 0 && <p style={styles.empty}>No one has expressed interest yet.</p>}
+          <div style={styles.list}>
+            {Object.entries(
+              connectedInterest.reduce((acc, row) => {
+                acc[row.account_type] = (acc[row.account_type] || 0) + 1;
+                return acc;
+              }, {})
+            )
+              .sort((a, b) => b[1] - a[1])
+              .map(([type, count]) => (
+                <div key={type} style={styles.card}>
+                  <div style={{ flex: 1 }}>
+                    <div style={styles.cardTitle}>{type}</div>
+                  </div>
+                  <div style={styles.cardMeta}>{count} interested</div>
+                </div>
+              ))}
           </div>
         </div>
       )}
