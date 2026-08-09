@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { Send, Loader2, Sparkles, Trash2 } from "lucide-react";
 import { supabase, getOrCreateSessionId, getProfile } from "../../lib/supabase";
 
@@ -12,18 +13,32 @@ const EXAMPLE_PROMPTS = [
   "Generate questions for my doctor",
 ];
 
-export default function AINavigatorPage() {
+function AINavigatorInner() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [asking, setAsking] = useState(false);
   const [context, setContext] = useState(null);
   const [matchLoading, setMatchLoading] = useState(false);
   const bottomRef = useRef(null);
+  const searchParams = useSearchParams();
+  const autoAskedRef = useRef(false);
 
   useEffect(() => {
     loadContext();
     loadHistory();
   }, []);
+
+  // If Home linked here with a specific question pre-filled (e.g. from the
+  // "Ask your oncologist" suggestions), ask it automatically once the
+  // profile context is ready — guarded so it only ever fires one time,
+  // even if this effect re-runs.
+  useEffect(() => {
+    const q = searchParams.get("q");
+    if (q && context && !autoAskedRef.current) {
+      autoAskedRef.current = true;
+      handleAsk(q);
+    }
+  }, [context, searchParams]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -254,6 +269,14 @@ function MatchResults({ data }) {
         ) : null
       )}
     </div>
+  );
+}
+
+export default function AINavigatorPage() {
+  return (
+    <Suspense fallback={<div style={styles.page}>Loading...</div>}>
+      <AINavigatorInner />
+    </Suspense>
   );
 }
 

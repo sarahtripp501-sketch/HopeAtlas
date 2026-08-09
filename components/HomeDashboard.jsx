@@ -64,6 +64,7 @@ export default function HomeDashboard() {
   });
   const [activeMeds, setActiveMeds] = useState([]);
   const [applications, setApplications] = useState([]);
+  const [askedQuestions, setAskedQuestions] = useState([]);
 
   useEffect(function () {
     (async function () {
@@ -82,6 +83,7 @@ export default function HomeDashboard() {
       loadCareCircle(id);
       loadMedications(id);
       loadApplications(id);
+      loadAskedQuestions(id);
     })();
   }, []);
 
@@ -144,6 +146,16 @@ export default function HomeDashboard() {
       .order("id", { ascending: true });
 
     if (!error) setApplications(data || []);
+  }
+
+  async function loadAskedQuestions(sessionId) {
+    const { data, error } = await supabase
+      .from("ai_conversations")
+      .select("message")
+      .eq("session_id", sessionId)
+      .eq("role", "user");
+
+    if (!error) setAskedQuestions((data || []).map((r) => r.message));
   }
 
   async function checkMatches() {
@@ -223,7 +235,7 @@ export default function HomeDashboard() {
   if (!loaded) return null;
 
   const hasProfile = profile && (profile.diagnosis || profile.name);
-  const questions = buildQuestions(profile);
+  const questions = buildQuestions(profile).filter((q) => !askedQuestions.includes(q));
 
   return (
     <main style={styles.page}>
@@ -474,8 +486,25 @@ export default function HomeDashboard() {
             </div>
             <ul style={styles.qList}>
               {questions.map(function (q) {
-                return <li key={q}>{q}</li>;
+                return (
+                  <li key={q}>
+                    <a href={`/ai-navigator?q=${encodeURIComponent(q)}`} style={styles.qLink}>
+                      {q}
+                    </a>
+                  </li>
+                );
               })}
+              {questions.length === 0 && (
+                <li style={styles.qEmpty}>
+                  You've already asked about these, nice work!{" "}
+                  <a
+                    href={`/ai-navigator?q=${encodeURIComponent("Generate a few new questions I should ask my oncologist at my next appointment")}`}
+                    style={styles.qLink}
+                  >
+                    Generate more questions to ask →
+                  </a>
+                </li>
+              )}
             </ul>
           </WaypointItem>
         </div>
@@ -774,5 +803,17 @@ const styles = {
     fontSize: "13px",
     color: "#5f6d63",
     lineHeight: 1.7,
+  },
+  qLink: {
+    color: "#5f6d63",
+    textDecoration: "underline",
+    textDecorationColor: "#C9C2B4",
+    cursor: "pointer",
+  },
+  qEmpty: {
+    listStyle: "none",
+    marginLeft: "-20px",
+    color: "#9a9488",
+    fontStyle: "italic",
   },
 };
