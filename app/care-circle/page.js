@@ -66,6 +66,49 @@ function randomToken() {
   return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
+// The signature visual for this page — Care Circle is literally about the
+// people gathered around someone, so this renders them as overlapping
+// circular initials in a gentle arc rather than a plain list. Purely
+// additive: the full grouped list with all its edit/delete/permission
+// controls still renders in full underneath, untouched.
+function MemberArc({ members, onSelect }) {
+  if (members.length === 0) return null;
+
+  const AVATAR_COLORS = ["#B86F4E", "#C9A227", "#7C9885", "#2B4339", "#8A6E8A"];
+
+  return (
+    <div style={styles.memberArc}>
+      {members.map((m, i) => {
+        const total = members.length;
+        const mid = (total - 1) / 2;
+        // Shallow upward arc: middle members sit slightly higher than the ends.
+        const lift = 10 - Math.pow(i - mid, 2) * (10 / Math.max(mid * mid, 1));
+        const initial = (m.name || "?").trim().charAt(0).toUpperCase();
+        const color = AVATAR_COLORS[i % AVATAR_COLORS.length];
+
+        return (
+          <button
+            key={m.id}
+            onClick={() => onSelect(m)}
+            title={m.name}
+            onMouseEnter={(e) => (e.currentTarget.style.transform = `translateY(${-lift - 4}px) scale(1.08)`)}
+            onMouseLeave={(e) => (e.currentTarget.style.transform = `translateY(${-lift}px)`)}
+            style={{
+              ...styles.memberArcAvatar,
+              background: color,
+              marginLeft: i === 0 ? 0 : "-10px",
+              transform: `translateY(${-lift}px)`,
+              zIndex: total - i,
+            }}
+          >
+            {initial}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function CareCirclePage() {
   const [view, setView] = useState("home");
 
@@ -101,6 +144,11 @@ export default function CareCirclePage() {
     emergency_access: false,
   });
   const [copiedId, setCopiedId] = useState(null);
+
+  function handleArcSelect(member) {
+    const el = document.getElementById(`member-${member.id}`);
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
 
   const [showAskForm, setShowAskForm] = useState(false);
   const [askText, setAskText] = useState("");
@@ -409,9 +457,11 @@ async function handleDeleteWallMessage(id) {
     <div style={styles.page}>
       <div style={styles.headerBlock}>
         <span style={styles.eyebrow}>Care Circle</span>
-        <h1 style={styles.heading}>❤️ Your Care Circle</h1>
+        <h1 style={styles.heading}>Your Care Circle</h1>
         <p style={styles.subheading}>Coordinate care with the people you trust.</p>
       </div>
+
+      {!loading && <MemberArc members={members} onSelect={handleArcSelect} />}
 
       {loading && <p style={styles.empty}>Loading...</p>}
 
@@ -438,16 +488,17 @@ async function handleDeleteWallMessage(id) {
                 </div>
                 <div style={styles.list}>
                  {g.members.map((m) => (
-                    <MemberRow
-                      key={m.id}
-                      m={m}
-                      onEdit={() => openEditMember(m)}
-                      onDelete={() => handleDeleteMember(m.id)}
-                      onRevoke={() => handleRevokeMember(m.id)}
-                      onRestore={() => handleRestoreMember(m.id)}
-                      onCopy={() => copyLink(m)}
-                      copied={copiedId === m.id}
-                    />
+                    <div id={`member-${m.id}`} key={m.id}>
+                      <MemberRow
+                        m={m}
+                        onEdit={() => openEditMember(m)}
+                        onDelete={() => handleDeleteMember(m.id)}
+                        onRevoke={() => handleRevokeMember(m.id)}
+                        onRestore={() => handleRestoreMember(m.id)}
+                        onCopy={() => copyLink(m)}
+                        copied={copiedId === m.id}
+                      />
+                    </div>
                   ))}
                 </div>
               </div>
@@ -459,16 +510,17 @@ async function handleDeleteWallMessage(id) {
               <div style={styles.peopleGroupLabel}>Other</div>
               <div style={styles.list}>
                 {ungroupedMembers.map((m) => (
-                  <MemberRow
-                    key={m.id}
-                    m={m}
-                    onEdit={() => openEditMember(m)}
-                    onDelete={() => handleDeleteMember(m.id)}
-                    onRevoke={() => handleRevokeMember(m.id)}
-                    onRestore={() => handleRestoreMember(m.id)}
-                    onCopy={() => copyLink(m)}
-                    copied={copiedId === m.id}
-                  />
+                  <div id={`member-${m.id}`} key={m.id}>
+                    <MemberRow
+                      m={m}
+                      onEdit={() => openEditMember(m)}
+                      onDelete={() => handleDeleteMember(m.id)}
+                      onRevoke={() => handleRevokeMember(m.id)}
+                      onRestore={() => handleRestoreMember(m.id)}
+                      onCopy={() => copyLink(m)}
+                      copied={copiedId === m.id}
+                    />
+                  </div>
                 ))}
               </div>
             </div>
@@ -868,7 +920,7 @@ function SubView({ view, onBack, tasks, updates, onClaimTask, onCompleteTask, on
 const styles = {
   page: {
     minHeight: "100vh",
-    background: "#F7E6DE",
+    background: "#F7E9E0",
     padding: "16px",
     paddingBottom: "80px",
     maxWidth: "600px",
@@ -915,7 +967,7 @@ const styles = {
     borderRadius: "8px",
     padding: "6px 10px",
     cursor: "pointer",
-    color: "#2B4339",
+    color: "#B86F4E",
   },
   empty: { color: "#9a9488", fontSize: "14px", textAlign: "center", marginTop: "20px" },
   peopleGroup: { marginBottom: "14px" },
@@ -980,6 +1032,29 @@ const styles = {
     border: "1px solid #EAD0C4",
     borderRadius: "12px",
     padding: "14px",
+    boxShadow: "0 8px 28px -8px rgba(184, 111, 78, 0.28)",
+  },
+  memberArc: {
+    display: "flex",
+    justifyContent: "center",
+    padding: "18px 0 26px",
+  },
+  memberArcAvatar: {
+    width: "44px",
+    height: "44px",
+    borderRadius: "50%",
+    border: "2px solid #FAF6F0",
+    color: "#FFFFFF",
+    fontFamily: "var(--font-fraunces), serif",
+    fontSize: "16px",
+    fontWeight: 600,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    cursor: "pointer",
+    position: "relative",
+    flexShrink: 0,
+    transition: "transform 0.2s ease",
   },
   todayRow: { display: "flex", alignItems: "center", fontSize: "13px", marginBottom: "8px", color: "#2A2622" },
   todayDot: { width: "6px", height: "6px", borderRadius: "50%", background: "#C9A227", marginRight: "8px", flexShrink: 0 },
