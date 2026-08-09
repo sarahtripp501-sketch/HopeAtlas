@@ -189,16 +189,16 @@ export default function ResourcesPage() {
         <h1 style={styles.heading}>Resources</h1>
         <p style={styles.subheading}>
           Financial aid, transportation, lodging, organizations, clinical trials,
-          medication assistance, and support groups : matched to your profile provided.
+          medication assistance, and support groups — matched to your situation.
         </p>
 
         <div style={styles.infoBox}>
           <p style={{ marginTop: 0, marginBottom: 0 }}>
             Results marked <b style={{ color: "#2B4339" }}>✓ Verified</b> are established national
-            nonprofits we have personally checked. Unmarked results come from our live
-            AI-assisted search, as helpful leads to explore, not a vetted list. Either way,
-            always confirm current details on each group's own site, this isn't medical or
-            financial advice. Save a resource to your saved list for easy access later, using the heart icon. You can also browse the full directory of organizations manually below.
+            nonprofits someone has personally checked. Unmarked results come from a live
+            AI-assisted search — helpful leads to follow up on, not a vetted list. Either way,
+            always confirm current details on each group's own site — this isn't medical or
+            financial advice.
           </p>
         </div>
 
@@ -268,8 +268,8 @@ export default function ResourcesPage() {
           style={styles.directoryToggle}
         >
           <span>
-            Looking beyond your own profile, a different diagnosis, or exploring for someone else? Browse the full
-            directory manually for your needs.
+            Looking beyond your own profile, or exploring for someone else? Browse the full
+            directory manually.
           </span>
           <ChevronDown
             size={16}
