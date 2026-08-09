@@ -457,8 +457,12 @@ async function handleDeleteWallMessage(id) {
     <div style={styles.page}>
       <div style={styles.headerBlock}>
         <span style={styles.eyebrow}>Care Circle</span>
-        <h1 style={styles.heading}>Your Care Circle</h1>
+        <h1 style={styles.heading}>❤️ Your Care Circle</h1>
         <p style={styles.subheading}>Coordinate care with the people you trust.</p>
+        <p style={styles.subheadingDetail}>
+          Add the people who care about you so they can stay in the loop with your updates —
+          and you're never carrying it all alone.
+        </p>
       </div>
 
       {!loading && <MemberArc members={members} onSelect={handleArcSelect} />}
@@ -943,6 +947,7 @@ const styles = {
     margin: "6px 0 0",
   },
   subheading: { fontSize: "14px", color: "#5f6d63", marginTop: "6px" },
+  subheadingDetail: { fontSize: "13px", color: "#8a7d6e", marginTop: "4px", lineHeight: 1.5 },
   backButton: {
     background: "none",
     border: "none",

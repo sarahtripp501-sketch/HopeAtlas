@@ -34,8 +34,15 @@ export async function GET(request) {
     .eq("id", member.id)
     .then(() => {});
 
+  const { data: patientProfile } = await supabaseAdmin
+    .from("profiles")
+    .select("name")
+    .eq("session_id", member.session_id)
+    .maybeSingle();
+
   const result = {
     notFound: false,
+    patientName: patientProfile?.name || "your loved one",
     member: {
       name: member.name,
       view_updates: member.view_updates,

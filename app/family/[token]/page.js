@@ -14,6 +14,7 @@ const QUICK_REPLIES = [
 export default function FamilyViewPage() {
   const { token } = useParams();
   const [member, setMember] = useState(null);
+  const [patientName, setPatientName] = useState("");
   const [updates, setUpdates] = useState([]);
   const [appointments, setAppointments] = useState([]);
   const [medications, setMedications] = useState([]);
@@ -58,6 +59,7 @@ export default function FamilyViewPage() {
       }
 
       setMember(data.member);
+      setPatientName(data.patientName || "your loved one");
       setReplyName(data.member.name);
       setUpdates(data.updates || []);
       setAppointments(data.appointments || []);
@@ -214,7 +216,7 @@ export default function FamilyViewPage() {
   return (
     <div style={styles.page}>
       <div style={styles.headerBlock}>
-        <h1 style={styles.heading}>Following {member.name}'s journey</h1>
+        <h1 style={styles.heading}>Following {patientName}'s journey</h1>
         <p style={styles.subheading}>You're viewing as {member.name}.</p>
       </div>
 
@@ -483,7 +485,7 @@ const styles = {
     border: "none",
     borderRadius: "16px",
     padding: "5px 12px",
-    fontSize: "12px",
+    fontSize: "14px",
     fontWeight: 600,
     cursor: "pointer",
   },
@@ -495,7 +497,7 @@ const styles = {
     marginBottom: "10px",
   },
   pickedUpBadge: {
-    fontSize: "11px",
+    fontSize: "13px",
     fontWeight: 700,
     color: "#0F6E56",
     background: "#E1F5EE",
@@ -505,17 +507,17 @@ const styles = {
   },
   page: { padding: "16px", paddingBottom: "60px", maxWidth: "600px", margin: "0 auto" },
   headerBlock: { marginBottom: "18px" },
-  heading: { fontSize: "20px", fontWeight: 700 },
-  subheading: { fontSize: "13px", color: "#6E726A", marginTop: "4px" },
+  heading: { fontSize: "22px", fontWeight: 700 },
+  subheading: { fontSize: "15px", color: "#6E726A", marginTop: "4px" },
   sectionLabel: {
-    fontSize: "12px",
+    fontSize: "13.5px",
     fontWeight: 700,
     letterSpacing: "0.05em",
     textTransform: "uppercase",
     color: "#9A9A90",
     margin: "18px 0 8px",
   },
-  empty: { color: "#999", fontSize: "14px", textAlign: "center", marginTop: "20px" },
+  empty: { color: "#999", fontSize: "15.5px", textAlign: "center", marginTop: "20px" },
   list: { display: "flex", flexDirection: "column", gap: "10px" },
   card: {
     border: "1px solid #E1DDD2",
@@ -523,16 +525,16 @@ const styles = {
     padding: "12px 14px",
     background: "#FCFBF8",
   },
-  cardCategory: { fontSize: "12px", fontWeight: 700, color: "#D4537E", marginBottom: "4px" },
-  cardMessage: { fontSize: "13.5px", color: "#262E2A" },
-  cardDate: { fontSize: "12px", color: "#9A9A90", marginTop: "6px" },
+  cardCategory: { fontSize: "14px", fontWeight: 700, color: "#D4537E", marginBottom: "4px" },
+  cardMessage: { fontSize: "15.5px", color: "#262E2A" },
+  cardDate: { fontSize: "13.5px", color: "#9A9A90", marginTop: "6px" },
   claimButton: {
     background: "#111",
     color: "#fff",
     border: "none",
     borderRadius: "6px",
-    padding: "5px 10px",
-    fontSize: "12px",
+    padding: "6px 12px",
+    fontSize: "14px",
     fontWeight: 600,
     cursor: "pointer",
   },
@@ -547,8 +549,8 @@ const styles = {
     background: "#fff",
     border: "1px solid #E1DDD2",
     borderRadius: "20px",
-    padding: "6px 10px",
-    fontSize: "12px",
+    padding: "7px 12px",
+    fontSize: "14px",
     cursor: "pointer",
   },
   input: {
@@ -557,7 +559,7 @@ const styles = {
     marginBottom: "10px",
     borderRadius: "8px",
     border: "1px solid #E1DDD2",
-    fontSize: "14px",
+    fontSize: "15.5px",
     fontFamily: "inherit",
   },
   saveButton: {
@@ -570,5 +572,5 @@ const styles = {
     fontWeight: 600,
     cursor: "pointer",
   },
-  sentNote: { fontSize: "12.5px", color: "#1D9E75", marginTop: "8px", textAlign: "center" },
+  sentNote: { fontSize: "14px", color: "#1D9E75", marginTop: "8px", textAlign: "center" },
 };
