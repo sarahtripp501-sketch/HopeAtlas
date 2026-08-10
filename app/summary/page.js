@@ -12,13 +12,14 @@ export default function SummaryPage() {
   const [savedOrgs, setSavedOrgs] = useState([]);
   const [savedTrials, setSavedTrials] = useState([]);
   const [savedGrants, setSavedGrants] = useState([]);
+  const [diagnosisEvents, setDiagnosisEvents] = useState([]);
 
   useEffect(() => {
     (async () => {
       const sessionId = await getOrCreateSessionId();
       const today = new Date().toISOString().slice(0, 10);
 
-      const [profileData, apptRes, medRes, orgsRes, trialsRes, grantsRes] = await Promise.all([
+      const [profileData, apptRes, medRes, orgsRes, trialsRes, grantsRes, diagnosisRes] = await Promise.all([
         getProfile(sessionId).catch(() => null),
         supabase
           .from("appointments")
@@ -31,6 +32,7 @@ export default function SummaryPage() {
         getSavedOrgs(sessionId).catch(() => []),
         supabase.from("saved_trials").select("*").eq("session_id", sessionId),
         supabase.from("saved_grants").select("*").eq("session_id", sessionId),
+        supabase.from("diagnosis_events").select("*").eq("session_id", sessionId).order("event_date", { ascending: true }),
       ]);
 
       setProfile(profileData);
@@ -39,6 +41,7 @@ export default function SummaryPage() {
       setSavedOrgs(orgsRes || []);
       setSavedTrials(trialsRes.data || []);
       setSavedGrants(grantsRes.data || []);
+      setDiagnosisEvents(diagnosisRes.data || []);
       setLoading(false);
     })();
   }, []);
@@ -84,6 +87,22 @@ export default function SummaryPage() {
           <Field label="Insurance" value={profile?.insurance} />
           <Field label="Current Treatment" value={profile?.current_treatment} />
           <Field label="Past Treatment" value={profile?.past_treatment} />
+        </Section>
+
+        <Section title="Diagnosis History">
+          {diagnosisEvents.length > 0 ? (
+            <ul style={styles.plainList}>
+              {diagnosisEvents.map((ev) => (
+                <li key={ev.id}>
+                  {ev.event_date} — {ev.title}
+                  {ev.details ? `: ${ev.details}` : ""}
+                  {ev.event_type === "progression" ? " (progression)" : ""}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p style={styles.emptyText}>No diagnosis history on file.</p>
+          )}
         </Section>
 
         <Section title="Next Appointment">

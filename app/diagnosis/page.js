@@ -121,6 +121,11 @@ export default function DiagnosisPage() {
           <div>
             <span style={styles.eyebrow}>My Journey</span>
             <h1 style={styles.heading}>My Diagnosis</h1>
+            <p style={styles.subheading}>
+              A record of key moments in your diagnosis — new findings, staging changes,
+              progression. Keeping this updated builds a clear picture over time, both for
+              yourself and to share with your care team through the printable Care Summary.
+            </p>
           </div>
           <button style={styles.addButton} onClick={openNewForm}>
             <Plus size={20} />
@@ -239,6 +244,7 @@ const styles = {
     justifyContent: "space-between",
     alignItems: "flex-start",
     marginBottom: "18px",
+    gap: "12px",
   },
   eyebrow: {
     fontFamily: "var(--font-plex-mono), monospace",
@@ -256,6 +262,13 @@ const styles = {
     color: "#2A2622",
     margin: 0,
   },
+  subheading: {
+    fontSize: "13px",
+    color: "#5f6d63",
+    marginTop: "6px",
+    lineHeight: 1.5,
+    maxWidth: "440px",
+  },
   addButton: {
     background: "#FFFFFF",
     border: "1px solid #E5DFD2",
@@ -263,6 +276,7 @@ const styles = {
     padding: "6px 10px",
     cursor: "pointer",
     color: "#2B4339",
+    flexShrink: 0,
   },
   currentCard: {
     background: "#FFFFFF",
