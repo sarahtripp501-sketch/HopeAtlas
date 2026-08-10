@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Activity, Dna, Pill, FileText, Sparkles } from "lucide-react";
+import { Activity, Dna, Pill, FileText, Sparkles, Smile } from "lucide-react";
 import { supabase, getOrCreateSessionId } from "../../lib/supabase";
 
 export default function TimelinePage() {
@@ -17,12 +17,13 @@ export default function TimelinePage() {
   async function loadTimeline() {
     const sessionId = await getOrCreateSessionId();
 
-    const [diagRes, bioRes, txRes, docRes, extractedRes] = await Promise.all([
+    const [diagRes, bioRes, txRes, docRes, extractedRes, symptomRes] = await Promise.all([
       supabase.from("diagnosis_events").select("*").eq("session_id", sessionId),
       supabase.from("biomarker_tests").select("*").eq("session_id", sessionId),
       supabase.from("treatments").select("*").eq("session_id", sessionId),
       supabase.from("documents").select("*").eq("session_id", sessionId),
       supabase.from("timeline_events").select("*").eq("session_id", sessionId),
+      supabase.from("symptom_logs").select("*").eq("session_id", sessionId),
     ]);
 
     const merged = [];
@@ -79,6 +80,17 @@ export default function TimelinePage() {
       });
     });
 
+    (symptomRes.data || []).forEach((log) => {
+      const entries = log.entries || [];
+      merged.push({
+        date: log.log_date,
+        type: "symptom",
+        title: entries.length > 0 ? entries.map((e) => e.symptom).join(", ") : "Check-in",
+        subtitle: log.note || "Symptom check-in",
+        href: "/symptoms",
+      });
+    });
+
     merged.sort((a, b) => new Date(a.date) - new Date(b.date));
 
     setEvents(merged);
@@ -91,6 +103,7 @@ export default function TimelinePage() {
     treatment: Pill,
     document: FileText,
     extracted: Sparkles,
+    symptom: Smile,
   };
 
   const colorFor = {
@@ -99,6 +112,7 @@ export default function TimelinePage() {
     treatment: "#1D9E75",
     document: "#D85A30",
     extracted: "#BA7517",
+    symptom: "#B86F4E",
   };
 
   const labelFor = {
@@ -107,12 +121,19 @@ export default function TimelinePage() {
     treatment: "Treatment",
     document: "Document",
     extracted: "AI extracted",
+    symptom: "Symptom check-in",
   };
 
   return (
     <div style={styles.page}>
       <h1 style={styles.heading}>Timeline</h1>
-      <p style={styles.subheading}>Everything in your journey, in one place.</p>
+      <p style={styles.subheading}>
+        Everything in your journey merged into one browsable history : diagnosis, treatments,
+        biomarkers, documents, and symptom check-ins. Tap anything to jump there. Different from
+        the printable{" "}
+        <a href="/summary" style={styles.subheadingLink}>Care Summary</a>: this is for browsing
+        in the app; that's a static snapshot to print or share with others.
+      </p>
 
       {loading && <p style={styles.empty}>Loading...</p>}
       {!loading && events.length === 0 && (
@@ -158,7 +179,8 @@ export default function TimelinePage() {
 const styles = {
   page: { padding: "16px", paddingBottom: "80px", maxWidth: "600px", margin: "0 auto" },
   heading: { fontSize: "20px", fontWeight: 700, marginBottom: "4px" },
-  subheading: { fontSize: "13px", color: "#6E726A", marginBottom: "20px" },
+  subheading: { fontSize: "13px", color: "#6E726A", marginBottom: "20px", lineHeight: 1.6 },
+  subheadingLink: { color: "#3F628F", fontWeight: 600 },
   empty: { color: "#999", fontSize: "14px", textAlign: "center", marginTop: "40px" },
   timeline: { position: "relative", paddingLeft: "24px" },
   timelineLine: {
