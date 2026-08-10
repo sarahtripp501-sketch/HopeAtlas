@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { HandCoins, Users, FlaskConical, Car, Building2, Pill, HeartHandshake, Loader2, CheckCircle2, Heart, ChevronDown } from "lucide-react";
-import { getOrCreateSessionId, getProfile, getCustomOrgs, getOrgVerifications, getSavedOrgs, saveOrg, unsaveOrg } from "../../lib/supabase";
+import { HandCoins, Users, FlaskConical, Car, Building2, Pill, HeartHandshake, Loader2, CheckCircle2, Heart, ChevronDown, Square, CheckSquare } from "lucide-react";
+import { getOrCreateSessionId, getProfile, getCustomOrgs, getOrgVerifications, getSavedOrgs, saveOrg, unsaveOrg, supabase } from "../../lib/supabase";
 import { ORGS } from "../../lib/orgData";
 import OrgDirectory from "../../components/OrgDirectory";
 
@@ -30,6 +30,16 @@ const RESOURCE_TO_CAT = {
   support_groups: "support",
 };
 
+// Application Tracker uses its own simpler type vocabulary
+// (Clinical Trial / Grant / Financial Assistance / Other) — this bridges
+// Resources' category keys into that, so tracked items land in a sensible
+// bucket without needing to touch Application Tracker's own code at all.
+const RESOURCE_TO_APP_TYPE = {
+  clinical_trials: "Clinical Trial",
+  grants: "Financial Assistance",
+  medication_assistance: "Financial Assistance",
+};
+
 // Bridges the two different category systems: curated orgs are tagged with
 // broad categories (support/financial/research/info/practical/caregiver),
 // while the AI-matched results use the 7 specific keys above. This mapping
@@ -54,6 +64,7 @@ export default function ResourcesPage() {
   const [saved, setSaved] = useState([]);
   const [sessionId, setSessionId] = useState(null);
   const [directoryOpen, setDirectoryOpen] = useState(false);
+  const [tracked, setTracked] = useState([]);
 
   useEffect(() => {
     findResources();
@@ -62,11 +73,48 @@ export default function ResourcesPage() {
       const id = await getOrCreateSessionId();
       setSessionId(id);
       getSavedOrgs(id).then(setSaved).catch(() => setSaved([]));
+      supabase
+        .from("applications")
+        .select("id, name, url, type")
+        .eq("session_id", id)
+        .then(({ data }) => setTracked(data || []))
+        .catch(() => setTracked([]));
     })();
   }, []);
 
   function isSaved(item) {
     return saved.some((s) => s.url === item.url);
+  }
+
+  function isTracked(item) {
+    return tracked.some((t) => t.url === item.url);
+  }
+
+  async function toggleTrack(item, catKey) {
+    if (!sessionId) return;
+    const existing = tracked.find((t) => t.url === item.url);
+    if (existing) {
+      setTracked((prev) => prev.filter((t) => t.url !== item.url));
+      await supabase.from("applications").delete().eq("id", existing.id).eq("session_id", sessionId);
+    } else {
+      const appType = RESOURCE_TO_APP_TYPE[catKey] || "Other";
+      const { data, error } = await supabase
+        .from("applications")
+        .insert({
+          session_id: sessionId,
+          name: item.name,
+          url: item.url,
+          type: appType,
+          status: "Not started",
+          notes: "",
+          checklist: [],
+        })
+        .select("id, name, url, type")
+        .single();
+      if (!error && data) {
+        setTracked((prev) => [...prev, data]);
+      }
+    }
   }
 
   async function toggleSave(item, catKey) {
@@ -202,6 +250,14 @@ export default function ResourcesPage() {
           </p>
         </div>
 
+        <div style={styles.trackInfoBox}>
+          <Square size={13} color="#5f6d63" style={{ marginRight: "6px", flexShrink: 0 }} />
+          <span>
+            Tap the checkbox on anything you're applying to — it'll show up automatically on
+            Home and in your <a href="/application-tracker" style={styles.prefsLinkInline}>Application Tracker</a>, where you can update its progress.
+          </span>
+        </div>
+
         {loading && (
           <div style={styles.loadingRow}>
             <Loader2 size={16} className="spin" style={{ marginRight: "8px" }} />
@@ -236,6 +292,17 @@ export default function ResourcesPage() {
                               </span>
                             )}
                             <button
+                              onClick={() => toggleTrack(item, cat.key)}
+                              style={styles.saveButton}
+                              title={isTracked(item) ? "Remove from Application Tracker" : "Track in Application Tracker"}
+                            >
+                              {isTracked(item) ? (
+                                <CheckSquare size={16} color="#2C5F55" />
+                              ) : (
+                                <Square size={16} color="#9A9A90" />
+                              )}
+                            </button>
+                            <button
                               onClick={() => toggleSave(item, cat.key)}
                               style={styles.saveButton}
                               title={isSaved(item) ? "Saved" : "Save"}
@@ -245,6 +312,12 @@ export default function ResourcesPage() {
                           </div>
                         </div>
                         <div style={styles.cardDesc}>{item.desc}</div>
+                        {isTracked(item) && (
+                          <div style={styles.trackedNote}>
+                            ✓ Tracked — update its progress in{" "}
+                            <a href="/application-tracker" style={styles.prefsLinkInline}>Application Tracker</a>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -332,6 +405,24 @@ const styles = {
     lineHeight: 1.6,
     marginBottom: "18px",
   },
+  trackInfoBox: {
+    display: "flex",
+    alignItems: "flex-start",
+    background: "#F5F2EA",
+    border: "1px solid #E5DFD2",
+    borderRadius: "10px",
+    padding: "10px 12px",
+    fontSize: "12.5px",
+    color: "#5f6d63",
+    lineHeight: 1.5,
+    marginBottom: "18px",
+  },
+  trackedNote: {
+    fontSize: "11.5px",
+    color: "#2C5F55",
+    marginTop: "6px",
+  },
+  prefsLinkInline: { color: "#3F628F", fontWeight: 600 },
   divider: {
     borderTop: "1px solid #E5DFD2",
     margin: "32px 0 18px",

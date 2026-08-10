@@ -7,6 +7,47 @@ import { supabase, getOrCreateSessionId } from "../../lib/supabase";
 const TYPE_OPTIONS = ["Clinical Trial", "Grant", "Financial Assistance", "Other"];
 const STATUS_OPTIONS = ["Not started", "In progress", "Submitted", "Awarded", "Denied"];
 
+// A short celebratory burst when something gets marked Awarded — pure CSS
+// animation, no external library needed for a ~2 second flourish.
+function ConfettiBurst() {
+  const colors = ["#B86F4E", "#C9A227", "#2B4339", "#7C9885", "#D4537E", "#3F628F"];
+  const pieces = Array.from({ length: 60 }, (_, i) => ({
+    id: i,
+    left: Math.random() * 100,
+    delay: Math.random() * 0.3,
+    duration: 1.6 + Math.random() * 0.8,
+    color: colors[i % colors.length],
+    rotate: Math.random() * 360,
+    size: 6 + Math.random() * 6,
+  }));
+
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 200, pointerEvents: "none", overflow: "hidden" }}>
+      <style>{`
+        @keyframes confettiFall {
+          0% { transform: translateY(-10vh) rotate(0deg); opacity: 1; }
+          100% { transform: translateY(110vh) rotate(720deg); opacity: 0.9; }
+        }
+      `}</style>
+      {pieces.map((p) => (
+        <div
+          key={p.id}
+          style={{
+            position: "absolute",
+            top: 0,
+            left: `${p.left}%`,
+            width: `${p.size}px`,
+            height: `${p.size * 0.6}px`,
+            background: p.color,
+            borderRadius: "2px",
+            animation: `confettiFall ${p.duration}s ease-in ${p.delay}s forwards`,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
 export default function ApplicationTrackerPage() {
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -17,6 +58,7 @@ export default function ApplicationTrackerPage() {
   const [status, setStatus] = useState(STATUS_OPTIONS[0]);
   const [notes, setNotes] = useState("");
   const [checklistText, setChecklistText] = useState("");
+  const [showConfetti, setShowConfetti] = useState(false);
 
   useEffect(() => {
     loadApplications();
@@ -73,9 +115,10 @@ export default function ApplicationTrackerPage() {
   async function handleSave() {
     if (!name) return;
     const sessionId = await getOrCreateSessionId();
+    const existing = editingId ? applications.find((a) => a.id === editingId) : null;
+    const justAwarded = status === "Awarded" && (!existing || existing.status !== "Awarded");
 
     if (editingId) {
-      const existing = applications.find((a) => a.id === editingId);
       const checklist = buildChecklist(existing ? existing.checklist : []);
       const { error } = await supabase
         .from("applications")
@@ -94,6 +137,11 @@ export default function ApplicationTrackerPage() {
         checklist,
       });
       if (error) return console.error(error);
+    }
+
+    if (justAwarded) {
+      setShowConfetti(true);
+      setTimeout(() => setShowConfetti(false), 2200);
     }
 
     setShowForm(false);
@@ -132,13 +180,23 @@ export default function ApplicationTrackerPage() {
     await loadApplications();
   }
 
-  const active = applications.filter((a) => a.status !== "Awarded" && a.status !== "Denied");
+  const inProgress = applications.filter((a) => a.status === "Not started" || a.status === "In progress");
+  const submitted = applications.filter((a) => a.status === "Submitted");
   const closed = applications.filter((a) => a.status === "Awarded" || a.status === "Denied");
 
   return (
     <div style={styles.page}>
+      {showConfetti && <ConfettiBurst />}
+
       <div style={styles.header}>
-        <h1 style={styles.heading}>Application Tracker</h1>
+        <div>
+          <h1 style={styles.heading}>Application Tracker</h1>
+          <p style={styles.subheading}>
+            Keep track of every grant, trial, or program you're applying to. This page will help you manage the entire application process from first steps
+            to a final decision. Add one manually, or check the box on anything you find in{" "}
+            <a href="/resources" style={styles.subheadingLink}>Resources</a> to add it here automatically.
+          </p>
+        </div>
         <button style={styles.addButton} onClick={openNewForm}>
           <Plus size={20} />
         </button>
@@ -201,11 +259,28 @@ export default function ApplicationTrackerPage() {
         <p style={styles.empty}>No applications tracked yet. Tap + to add one.</p>
       )}
 
-      {!loading && active.length > 0 && (
+      {!loading && inProgress.length > 0 && (
         <>
           <div style={styles.sectionLabel}>In Progress</div>
           <div style={styles.list}>
-            {active.map((a) => (
+            {inProgress.map((a) => (
+              <AppCard
+                key={a.id}
+                a={a}
+                onEdit={() => openEditForm(a)}
+                onDelete={() => handleDelete(a.id)}
+                onToggleItem={(itemId) => toggleChecklistItem(a, itemId)}
+              />
+            ))}
+          </div>
+        </>
+      )}
+
+      {!loading && submitted.length > 0 && (
+        <>
+          <div style={{ ...styles.sectionLabel, marginTop: "20px" }}>Submitted</div>
+          <div style={styles.list}>
+            {submitted.map((a) => (
               <AppCard
                 key={a.id}
                 a={a}
@@ -249,7 +324,13 @@ function AppCard({ a, onEdit, onDelete, onToggleItem }) {
           <Star size={16} />
         </div>
         <div style={{ flex: 1 }}>
-          <div style={styles.cardTitle}>{a.name}</div>
+          {a.url ? (
+            <a href={a.url} target="_blank" rel="noopener noreferrer" style={styles.cardTitleLink}>
+              {a.name}
+            </a>
+          ) : (
+            <div style={styles.cardTitle}>{a.name}</div>
+          )}
           <div style={styles.cardSubtitle}>
             {[a.type, a.status].filter(Boolean).join(" · ")}
             {checklist.length > 0 && ` · ${doneCount}/${checklist.length} steps`}
@@ -295,10 +376,13 @@ const styles = {
   header: {
     display: "flex",
     justifyContent: "space-between",
-    alignItems: "center",
+    alignItems: "flex-start",
+    gap: "12px",
     marginBottom: "16px",
   },
   heading: { fontSize: "20px", fontWeight: 700 },
+  subheading: { fontSize: "13px", color: "#6E726A", marginTop: "4px", lineHeight: 1.5 },
+  subheadingLink: { color: "#3F628F", fontWeight: 600 },
   addButton: {
     background: "#FCFBF8",
     border: "1px solid #E1DDD2",
@@ -379,6 +463,7 @@ const styles = {
     flexShrink: 0,
   },
   cardTitle: { fontSize: "14px", fontWeight: 600 },
+  cardTitleLink: { fontSize: "14px", fontWeight: 600, color: "#2C5F55", textDecoration: "none" },
   cardSubtitle: { fontSize: "12.5px", color: "#6E726A", marginTop: "2px" },
   cardNotes: { fontSize: "12px", color: "#9A9A90", marginTop: "4px" },
   cardActions: { display: "flex", gap: "6px", flexShrink: 0 },
