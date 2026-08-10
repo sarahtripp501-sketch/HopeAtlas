@@ -237,24 +237,31 @@ export default function ResourcesPage() {
         <h1 style={styles.heading}>Resources</h1>
         <p style={styles.subheading}>
           Financial aid, transportation, lodging, organizations, clinical trials,
-          medication assistance, and support groups — matched to your situation.
+          medication assistance, and support groups : matched to your profile given.
         </p>
 
         <div style={styles.infoBox}>
           <p style={{ marginTop: 0, marginBottom: 0 }}>
-            Results marked <b style={{ color: "#2B4339" }}>✓ Verified</b> are established national
-            nonprofits someone has personally checked. Unmarked results come from a live
-            AI-assisted search — helpful leads to follow up on, not a vetted list. Either way,
-            always confirm current details on each group's own site — this isn't medical or
-            financial advice.
+            <b style={{ color: "#2B4339" }}>✓ Verified</b> results are established nonprofits we've
+            personally checked. Unmarked results come from our live AI search (good leads, not
+            a vetted list). Always confirm details directly with each group, this isn't medical
+            or financial advice.
           </p>
         </div>
 
         <div style={styles.trackInfoBox}>
           <Square size={13} color="#5f6d63" style={{ marginRight: "6px", flexShrink: 0 }} />
           <span>
-            Tap the checkbox on anything you're applying to — it'll show up automatically on
+            Tap the checkbox on anything you're applying to : it'll show up automatically on
             Home and in your <a href="/application-tracker" style={styles.prefsLinkInline}>Application Tracker</a>, where you can update its progress.
+          </span>
+        </div>
+
+        <div style={styles.trackInfoBox}>
+          <Heart size={13} color="#5f6d63" style={{ marginRight: "6px", flexShrink: 0 }} />
+          <span>
+            Tap the heart on anything you're interested in : it'll show up automatically on your{" "}
+            <a href="/saved" style={styles.prefsLinkInline}>Saved</a> page, found under More.
           </span>
         </div>
 
