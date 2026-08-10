@@ -127,19 +127,17 @@ export default function AlertsPage() {
 
         {prefsError && <p style={styles.prefsErrorText}>{prefsError}</p>}
 
-        {hasPhone && (
-          <div style={styles.smsConsentBlock}>
-            <p style={styles.smsConsentText}>
-              By checking this box, you agree to receive text messages from Hope Atlas at the
-              phone number on your profile, including alerts from your Care Circle and updates
-              on your applications. Message frequency varies, up to about 1 message per day.
-              Message and data rates may apply. Reply STOP at any time to unsubscribe, or HELP
-              for help. View our{" "}
-              <a href="/terms" style={styles.prefsLink}>Terms of Service</a> and{" "}
-              <a href="/privacy-policy" style={styles.prefsLink}>Privacy Policy</a>.
-            </p>
-          </div>
-        )}
+        <div style={styles.smsConsentBlock}>
+          <p style={styles.smsConsentText}>
+            By checking this box, you agree to receive text messages from Hope Atlas at the
+            phone number on your profile, including alerts from your Care Circle and updates
+            on your applications. Message frequency varies, up to about 1 message per day.
+            Message and data rates may apply. Reply STOP at any time to unsubscribe, or HELP
+            for help. View our{" "}
+            <a href="/terms" style={styles.prefsLink}>Terms of Service</a> and{" "}
+            <a href="/privacy-policy" style={styles.prefsLink}>Privacy Policy</a>.
+          </p>
+        </div>
 
         {!hasPhone && (
           <p style={styles.prefsHint}>
@@ -174,7 +172,7 @@ export default function AlertsPage() {
 
       {!loading && followUps.length === 0 && (
         <p style={styles.empty}>
-         Looking for trial, grant, or resource matches?
+          Nothing to follow up on right now. Looking for trial, grant, or resource matches?
           Check out <a href="/resources" style={styles.prefsLink}>Resources</a>.
         </p>
       )}
