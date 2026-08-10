@@ -23,12 +23,42 @@ export default function BiomarkersPage() {
   const [selected, setSelected] = useState(null);
 
   const [question, setQuestion] = useState("");
-  const [answer, setAnswer] = useState("");
+  const [history, setHistory] = useState([]);
   const [asking, setAsking] = useState(false);
 
   useEffect(() => {
     loadAll();
+    loadHistory();
   }, []);
+
+  async function loadHistory() {
+    const sessionId = await getOrCreateSessionId();
+    const { data, error } = await supabase
+      .from("ai_conversations")
+      .select("role, message, created_at")
+      .eq("session_id", sessionId)
+      .eq("source", "biomarkers")
+      .order("created_at", { ascending: true });
+
+    if (!error) setHistory(data || []);
+  }
+
+  async function saveToHistory(role, message) {
+    const sessionId = await getOrCreateSessionId();
+    await supabase.from("ai_conversations").insert({
+      session_id: sessionId,
+      role,
+      message,
+      source: "biomarkers",
+    });
+  }
+
+  async function handleClearHistory() {
+    if (!window.confirm("Clear your AI explainer history for biomarkers and genetic testing? This can't be undone.")) return;
+    const sessionId = await getOrCreateSessionId();
+    await supabase.from("ai_conversations").delete().eq("session_id", sessionId).eq("source", "biomarkers");
+    setHistory([]);
+  }
 
   async function loadAll() {
     const sessionId = await getOrCreateSessionId();
@@ -138,19 +168,27 @@ export default function BiomarkersPage() {
 
   async function handleAsk() {
     if (!question.trim()) return;
+    const askedQuestion = question;
     setAsking(true);
-    setAnswer("");
+    setQuestion("");
+    setHistory((prev) => [...prev, { role: "user", message: askedQuestion }]);
+    saveToHistory("user", askedQuestion);
+
     try {
       const res = await fetch("/api/biomarker-ask", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question, biomarkers }),
+        body: JSON.stringify({ question: askedQuestion, biomarkers }),
       });
       const data = await res.json();
-      setAnswer(data.answer || "");
+      const answerText = data.answer || "";
+      setHistory((prev) => [...prev, { role: "assistant", message: answerText }]);
+      saveToHistory("assistant", answerText);
     } catch (err) {
       console.error(err);
-      setAnswer("Sorry, something went wrong. Please try again.");
+      const errText = "Sorry, something went wrong. Please try again.";
+      setHistory((prev) => [...prev, { role: "assistant", message: errText }]);
+      saveToHistory("assistant", errText);
     }
     setAsking(false);
   }
@@ -307,8 +345,35 @@ export default function BiomarkersPage() {
         </div>
       )}
 
-      <div style={styles.sectionLabel}>AI explainer</div>
+      <div style={{ ...styles.sectionLabel, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <span>AI explainer</span>
+        {history.length > 0 && (
+          <button style={styles.smallAddButton} onClick={handleClearHistory}>
+            Clear history
+          </button>
+        )}
+      </div>
+      <p style={styles.explainerNote}>
+        Ask anything about a biomarker or genetic test result in plain language. Your questions
+        and answers are saved here, so you can come back to them later instead of starting over.
+      </p>
       <div style={styles.askCard}>
+        {history.length > 0 && (
+          <div style={styles.historyList}>
+            {history.map((h, i) => (
+              <div
+                key={i}
+                style={{
+                  ...styles.historyBubble,
+                  ...(h.role === "user" ? styles.historyBubbleUser : styles.historyBubbleAssistant),
+                }}
+              >
+                {h.message}
+              </div>
+            ))}
+          </div>
+        )}
+
         <textarea
           style={{ ...styles.input, minHeight: "60px" }}
           placeholder="Ask anything about your biomarkers or genetic testing..."
@@ -319,7 +384,7 @@ export default function BiomarkersPage() {
           {asking ? "Thinking..." : "Ask"}
         </button>
 
-        {!answer && (
+        {history.length === 0 && (
           <div style={styles.examples}>
             {exampleQuestions.map((q) => (
               <button key={q} style={styles.exampleChip} onClick={() => setQuestion(q)}>
@@ -328,8 +393,6 @@ export default function BiomarkersPage() {
             ))}
           </div>
         )}
-
-        {answer && <p style={styles.answerText}>{answer}</p>}
       </div>
     </div>
   );
@@ -580,6 +643,36 @@ const styles = {
     border: "1px solid #E1DDD2",
     borderRadius: "12px",
     padding: "14px",
+  },
+  explainerNote: {
+    fontSize: "12.5px",
+    color: "#6E726A",
+    lineHeight: 1.5,
+    marginBottom: "10px",
+  },
+  historyList: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "8px",
+    marginBottom: "12px",
+  },
+  historyBubble: {
+    fontSize: "13.5px",
+    lineHeight: 1.6,
+    padding: "10px 12px",
+    borderRadius: "10px",
+    whiteSpace: "pre-wrap",
+  },
+  historyBubbleUser: {
+    background: "#F5F2EA",
+    color: "#2A2622",
+    fontWeight: 600,
+    alignSelf: "flex-start",
+  },
+  historyBubbleAssistant: {
+    background: "#FFFFFF",
+    border: "1px solid #E1DDD2",
+    color: "#333",
   },
   examples: {
     display: "flex",
