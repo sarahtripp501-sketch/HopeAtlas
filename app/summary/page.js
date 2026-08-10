@@ -4,6 +4,18 @@ import { useState, useEffect } from "react";
 import { Printer, ArrowLeft } from "lucide-react";
 import { supabase, getOrCreateSessionId, getProfile, getSavedOrgs } from "../../lib/supabase";
 
+const SEVERITY_LEVELS = [
+  { level: 1, emoji: "😊", label: "Mild" },
+  { level: 2, emoji: "🙂", label: "Noticeable" },
+  { level: 3, emoji: "😐", label: "Moderate" },
+  { level: 4, emoji: "😟", label: "Significant" },
+  { level: 5, emoji: "😣", label: "Severe" },
+];
+
+function severityInfo(level) {
+  return SEVERITY_LEVELS.find((s) => s.level === level) || SEVERITY_LEVELS[2];
+}
+
 export default function SummaryPage() {
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState(null);
@@ -13,13 +25,16 @@ export default function SummaryPage() {
   const [savedTrials, setSavedTrials] = useState([]);
   const [savedGrants, setSavedGrants] = useState([]);
   const [diagnosisEvents, setDiagnosisEvents] = useState([]);
+  const [biomarkers, setBiomarkers] = useState([]);
+  const [symptomLogs, setSymptomLogs] = useState([]);
+  const [selectedMonth, setSelectedMonth] = useState(() => new Date().toISOString().slice(0, 7));
 
   useEffect(() => {
     (async () => {
       const sessionId = await getOrCreateSessionId();
       const today = new Date().toISOString().slice(0, 10);
 
-      const [profileData, apptRes, medRes, orgsRes, trialsRes, grantsRes, diagnosisRes] = await Promise.all([
+      const [profileData, apptRes, medRes, orgsRes, trialsRes, grantsRes, diagnosisRes, biomarkersRes, symptomRes] = await Promise.all([
         getProfile(sessionId).catch(() => null),
         supabase
           .from("appointments")
@@ -33,6 +48,8 @@ export default function SummaryPage() {
         supabase.from("saved_trials").select("*").eq("session_id", sessionId),
         supabase.from("saved_grants").select("*").eq("session_id", sessionId),
         supabase.from("diagnosis_events").select("*").eq("session_id", sessionId).order("event_date", { ascending: true }),
+        supabase.from("biomarkers").select("name, status").eq("session_id", sessionId),
+        supabase.from("symptom_logs").select("*").eq("session_id", sessionId).order("log_date", { ascending: true }),
       ]);
 
       setProfile(profileData);
@@ -42,6 +59,8 @@ export default function SummaryPage() {
       setSavedTrials(trialsRes.data || []);
       setSavedGrants(grantsRes.data || []);
       setDiagnosisEvents(diagnosisRes.data || []);
+      setBiomarkers(biomarkersRes.data || []);
+      setSymptomLogs(symptomRes.data || []);
       setLoading(false);
     })();
   }, []);
@@ -75,13 +94,17 @@ export default function SummaryPage() {
         <p style={styles.generatedDate}>
           Generated {new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
         </p>
+        <p style={styles.intro}>
+          A snapshot of everything you have put in Hope Atlas. Bring this to appointments,
+          share it with a new provider, or hand it to a caregiver who needs to get up to speed
+          quickly. We hope to make your care journey easier and more organized, and this summary is one way to do that.
+        </p>
 
         <Section title="Profile">
           <Field label="Name" value={profile?.name} />
           <Field label="Diagnosis" value={profile?.diagnosis} />
           <Field label="Stage" value={profile?.stage} />
           <Field label="Grade" value={profile?.grade} />
-          <Field label="Biomarkers" value={profile?.biomarkers} />
           <Field label="Genetic Variants" value={profile?.genetic_variants} />
           <Field label="Age" value={profile?.age} />
           <Field label="Insurance" value={profile?.insurance} />
@@ -103,6 +126,65 @@ export default function SummaryPage() {
           ) : (
             <p style={styles.emptyText}>No diagnosis history on file.</p>
           )}
+        </Section>
+
+        <Section title="Biomarkers">
+          {biomarkers.length > 0 ? (
+            <ul style={styles.plainList}>
+              {biomarkers.map((b, i) => (
+                <li key={i}>{b.name}: {b.status}</li>
+              ))}
+            </ul>
+          ) : (
+            <p style={styles.emptyText}>No biomarkers on file.</p>
+          )}
+        </Section>
+
+        <Section title="Symptom History">
+          {(() => {
+            const months = Array.from(new Set(symptomLogs.map((l) => l.log_date.slice(0, 7)))).sort();
+            const currentMonth = new Date().toISOString().slice(0, 7);
+            if (!months.includes(currentMonth)) months.push(currentMonth);
+            months.sort();
+
+            const monthLogs = symptomLogs.filter((l) => l.log_date.slice(0, 7) === selectedMonth);
+
+            return (
+              <>
+                <select
+                  className="no-print"
+                  style={styles.monthSelect}
+                  value={selectedMonth}
+                  onChange={(e) => setSelectedMonth(e.target.value)}
+                >
+                  {months.map((m) => (
+                    <option key={m} value={m}>
+                      {new Date(m + "-01T00:00:00").toLocaleDateString("en-US", { month: "long", year: "numeric" })}
+                    </option>
+                  ))}
+                </select>
+
+                {monthLogs.length > 0 ? (
+                  <ul style={styles.plainList}>
+                    {monthLogs.map((log) => (
+                      <li key={log.id}>
+                        {log.log_date}
+                        {(log.entries || []).length > 0 && (
+                          <>
+                            {" — "}
+                            {log.entries.map((e) => `${e.symptom} (${severityInfo(e.severity).label})`).join(", ")}
+                          </>
+                        )}
+                        {log.note ? `. Note: ${log.note}` : ""}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p style={styles.emptyText}>No check-ins logged for this month.</p>
+                )}
+              </>
+            );
+          })()}
         </Section>
 
         <Section title="Next Appointment">
@@ -239,7 +321,8 @@ const styles = {
     fontFamily: "'Public Sans', -apple-system, sans-serif",
   },
   title: { fontSize: "24px", fontWeight: 700, margin: 0 },
-  generatedDate: { fontSize: "12.5px", color: "#777", marginTop: "4px", marginBottom: "24px" },
+  generatedDate: { fontSize: "12.5px", color: "#777", marginTop: "4px", marginBottom: "10px" },
+  intro: { fontSize: "13px", color: "#555", lineHeight: 1.5, marginBottom: "22px" },
   section: { marginBottom: "22px" },
   sectionTitle: {
     fontSize: "14px",
@@ -256,5 +339,13 @@ const styles = {
   plainText: { fontSize: "13.5px", color: "#222", margin: 0 },
   plainList: { fontSize: "13.5px", color: "#222", margin: 0, paddingLeft: "20px", lineHeight: 1.7 },
   emptyText: { fontSize: "13px", color: "#999", margin: 0 },
+  monthSelect: {
+    fontSize: "13px",
+    padding: "6px 10px",
+    borderRadius: "6px",
+    border: "1px solid #ccc",
+    marginBottom: "10px",
+    fontFamily: "inherit",
+  },
   disclaimer: { fontSize: "11.5px", color: "#999", marginTop: "20px", lineHeight: 1.5 },
 };
