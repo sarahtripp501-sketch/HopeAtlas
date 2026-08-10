@@ -14,6 +14,13 @@ const TABS = [
 export default function BottomNav() {
   const pathname = usePathname();
 
+  // Same reasoning as TopBar — a caregiver on a share link is a guest
+  // checking in on one person, not someone who should see the whole app's
+  // navigation.
+  if (pathname && pathname.startsWith("/family/")) {
+    return null;
+  }
+
   return (
     <div style={styles.bar}>
       {TABS.map((tab) => {

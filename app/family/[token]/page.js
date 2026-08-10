@@ -2,12 +2,12 @@
 
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
+import { ChevronDown } from "lucide-react";
 
 const QUICK_REPLIES = [
   "❤️ Thinking of you today.",
   "🙏 Praying for you.",
   "💐 We've got dinner covered tonight.",
-  "🚗 I can take you to your appointment.",
   "💙 Here if you need anything.",
 ];
 
@@ -41,6 +41,7 @@ export default function FamilyViewPage() {
   const [replyName, setReplyName] = useState("");
   const [replyText, setReplyText] = useState("");
   const [sent, setSent] = useState(false);
+  const [aiHistoryOpen, setAiHistoryOpen] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -238,6 +239,65 @@ export default function FamilyViewPage() {
         </>
       )}
 
+      {member.view_private_health_details && healthDetails && (
+        <>
+          <div style={styles.sectionLabel}>Health details</div>
+          <div style={styles.card}>
+            {healthDetails.diagnosis && <div style={styles.cardMessage}>Diagnosis: {healthDetails.diagnosis}</div>}
+            {healthDetails.stage && <div style={styles.cardMessage}>Stage: {healthDetails.stage}</div>}
+            {healthDetails.grade && <div style={styles.cardMessage}>Grade: {healthDetails.grade}</div>}
+            {healthDetails.genetic_variants && <div style={styles.cardMessage}>Genetic variants: {healthDetails.genetic_variants}</div>}
+            {healthDetails.biomarkers && healthDetails.biomarkers.length > 0 && (
+              <div style={styles.cardMessage}>
+                Biomarkers: {healthDetails.biomarkers.map((b) => `${b.name}: ${b.status}`).join(", ")}
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      {member.create_tasks && openTasks.length > 0 && (
+        <>
+          <div style={styles.sectionLabel}>Ways to help</div>
+          <div style={styles.list}>
+            {openTasks.map((t) => (
+              <div key={t.id} style={styles.card}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={styles.cardMessage}>{t.title}</span>
+                  <button style={styles.claimButton} onClick={() => claimTask(t)}>
+                    I'll help
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      <div style={styles.sectionLabel}>Send encouragement</div>
+      <div style={styles.replyCard}>
+        <p style={{ ...styles.cardMessage, marginBottom: "10px", color: "#6E726A" }}>
+          This sends {patientName} an email and text right away, in addition to posting here.
+        </p>
+        <div style={styles.quickRow}>
+          {QUICK_REPLIES.map((r) => (
+            <button key={r} style={styles.quickChip} onClick={() => setReplyText(r)}>
+              {r}
+            </button>
+          ))}
+        </div>
+        <textarea
+          style={{ ...styles.input, minHeight: "60px" }}
+          placeholder="Leave a message of support..."
+          value={replyText}
+          onChange={(e) => setReplyText(e.target.value)}
+        />
+        <button style={styles.saveButton} onClick={handleSendReply}>
+          Send
+        </button>
+        {sent && <p style={styles.sentNote}>Sent — they've been notified!</p>}
+      </div>
+
       {(member.view_appointments || member.add_appointments) && (
         <>
           <div style={styles.sectionHeaderRow}>
@@ -394,80 +454,41 @@ export default function FamilyViewPage() {
 
       {member.view_ai_conversations && (
         <>
-          <div style={styles.sectionLabel}>AI Navigator conversation history</div>
-          {aiConversations.length === 0 && <p style={styles.empty}>No conversation history to show.</p>}
-          <div style={styles.list}>
-            {aiConversations.map((c, i) => (
-              <div
-                key={i}
-                style={{
-                  ...styles.card,
-                  background: c.role === "user" ? "#F5F2EA" : "#fff",
-                }}
-              >
-                <div style={styles.cardCategory}>{c.role === "user" ? "Question" : "Answer"}</div>
-                <div style={styles.cardMessage}>{c.message}</div>
+          <div style={styles.sectionLabel}>AI Navigator history</div>
+          <button
+            style={styles.aiHistoryToggle}
+            onClick={() => setAiHistoryOpen((o) => !o)}
+          >
+            <span>{aiHistoryOpen ? "Hide" : "Show"} conversation ({aiConversations.length})</span>
+            <ChevronDown
+              size={16}
+              style={{
+                transform: aiHistoryOpen ? "rotate(180deg)" : "none",
+                transition: "transform 0.2s ease",
+              }}
+            />
+          </button>
+          {aiHistoryOpen && (
+            <>
+              {aiConversations.length === 0 && <p style={styles.empty}>No conversation history to show.</p>}
+              <div style={styles.list}>
+                {aiConversations.map((c, i) => (
+                  <div
+                    key={i}
+                    style={{
+                      ...styles.card,
+                      background: c.role === "user" ? "#F5F2EA" : "#fff",
+                    }}
+                  >
+                    <div style={styles.cardCategory}>{c.role === "user" ? "Question" : "Answer"}</div>
+                    <div style={styles.cardMessage}>{c.message}</div>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            </>
+          )}
         </>
       )}
-
-      {member.view_private_health_details && healthDetails && (
-        <>
-          <div style={styles.sectionLabel}>Health details</div>
-          <div style={styles.card}>
-            {healthDetails.diagnosis && <div style={styles.cardMessage}>Diagnosis: {healthDetails.diagnosis}</div>}
-            {healthDetails.stage && <div style={styles.cardMessage}>Stage: {healthDetails.stage}</div>}
-            {healthDetails.grade && <div style={styles.cardMessage}>Grade: {healthDetails.grade}</div>}
-            {healthDetails.genetic_variants && <div style={styles.cardMessage}>Genetic variants: {healthDetails.genetic_variants}</div>}
-            {healthDetails.biomarkers && healthDetails.biomarkers.length > 0 && (
-              <div style={styles.cardMessage}>
-                Biomarkers: {healthDetails.biomarkers.map((b) => `${b.name}: ${b.status}`).join(", ")}
-              </div>
-            )}
-          </div>
-        </>
-      )}
-
-      {member.create_tasks && openTasks.length > 0 && (
-        <>
-          <div style={styles.sectionLabel}>Ways to help</div>
-          <div style={styles.list}>
-            {openTasks.map((t) => (
-              <div key={t.id} style={styles.card}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span style={styles.cardMessage}>{t.title}</span>
-                  <button style={styles.claimButton} onClick={() => claimTask(t)}>
-                    I'll help
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
-
-      <div style={styles.sectionLabel}>Send encouragement</div>
-      <div style={styles.replyCard}>
-        <div style={styles.quickRow}>
-          {QUICK_REPLIES.map((r) => (
-            <button key={r} style={styles.quickChip} onClick={() => setReplyText(r)}>
-              {r}
-            </button>
-          ))}
-        </div>
-        <textarea
-          style={{ ...styles.input, minHeight: "60px" }}
-          placeholder="Leave a message of support..."
-          value={replyText}
-          onChange={(e) => setReplyText(e.target.value)}
-        />
-        <button style={styles.saveButton} onClick={handleSendReply}>
-          Send
-        </button>
-        {sent && <p style={styles.sentNote}>Sent — thank you for the support!</p>}
-      </div>
     </div>
   );
 }
@@ -537,6 +558,23 @@ const styles = {
     fontSize: "14px",
     fontWeight: 600,
     cursor: "pointer",
+  },
+  aiHistoryToggle: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    width: "100%",
+    background: "none",
+    border: "1px solid #E1DDD2",
+    borderRadius: "10px",
+    padding: "12px 14px",
+    fontSize: "13.5px",
+    fontWeight: 600,
+    color: "#5f6d63",
+    textAlign: "left",
+    cursor: "pointer",
+    fontFamily: "inherit",
+    marginBottom: "10px",
   },
   replyCard: {
     border: "1px solid #E1DDD2",

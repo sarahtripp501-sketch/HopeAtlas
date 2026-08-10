@@ -1,23 +1,20 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { FlaskConical, HandCoins, MapPin, Clock, X, Loader2 } from "lucide-react";
+import { Clock } from "lucide-react";
 import { supabase, getOrCreateSessionId, getProfile } from "../../lib/supabase";
 
 export default function AlertsPage() {
   const [loading, setLoading] = useState(true);
-  const [newTrials, setNewTrials] = useState([]);
-  const [newGrants, setNewGrants] = useState([]);
-  const [newResources, setNewResources] = useState([]);
   const [followUps, setFollowUps] = useState([]);
-  const [seenKeys, setSeenKeys] = useState(new Set());
   const [hasPhone, setHasPhone] = useState(false);
   const [notifyEmail, setNotifyEmail] = useState(true);
   const [notifyText, setNotifyText] = useState(false);
   const [prefsSaving, setPrefsSaving] = useState(false);
+  const [prefsError, setPrefsError] = useState("");
 
   useEffect(() => {
-    checkAlerts();
+    checkFollowUps();
     loadNotificationPrefs();
   }, []);
 
@@ -40,84 +37,46 @@ export default function AlertsPage() {
   async function toggleNotifyEmail() {
     const next = !notifyEmail;
     setNotifyEmail(next);
-    await savePrefs({ notify_email: next, notify_text: notifyText });
+    const ok = await savePrefs({ notify_email: next, notify_text: notifyText });
+    if (!ok) setNotifyEmail(!next);
   }
 
   async function toggleNotifyText() {
     if (!hasPhone) return;
     const next = !notifyText;
     setNotifyText(next);
-    await savePrefs({ notify_email: notifyEmail, notify_text: next });
+    const ok = await savePrefs({ notify_email: notifyEmail, notify_text: next });
+    if (!ok) setNotifyText(!next);
   }
 
   async function savePrefs(values) {
     setPrefsSaving(true);
+    setPrefsError("");
     const sessionId = await getOrCreateSessionId();
-    await supabase
+    const { error } = await supabase
       .from("preferences")
       .upsert({ session_id: sessionId, ...values }, { onConflict: "session_id" });
     setPrefsSaving(false);
+    if (error) {
+      console.error("Failed to save notification preferences:", error);
+      setPrefsError("Couldn't save that — please try again.");
+      return false;
+    }
+    return true;
   }
 
-  async function checkAlerts() {
+  // Real follow-up nudges from your own tracked applications sitting in
+  // early stages — not a fresh AI search, since that content already lives
+  // on Resources and doesn't need to be duplicated (or re-run) here.
+  async function checkFollowUps() {
     setLoading(true);
     const sessionId = await getOrCreateSessionId();
 
-    const [profile, seenRes, trialApps, grantApps] = await Promise.all([
-      getProfile(sessionId).catch(() => null),
-      supabase.from("seen_alerts").select("item_key").eq("session_id", sessionId),
+    const [trialApps, grantApps] = await Promise.all([
       supabase.from("trial_applications").select("*").eq("session_id", sessionId),
       supabase.from("grant_applications").select("*").eq("session_id", sessionId),
     ]);
 
-    const seen = new Set((seenRes.data || []).map((s) => s.item_key));
-    setSeenKeys(seen);
-
-    // Trials
-    try {
-      const res = await fetch("/api/trial-match", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          cancerType: profile?.diagnosis || "",
-          stage: profile?.stage || "",
-          zip: profile?.zip_code || "",
-        }),
-      });
-      const data = await res.json();
-      const trials = (data.trials || []).filter((t) => !seen.has(t.url));
-      setNewTrials(trials);
-    } catch (err) {
-      console.error(err);
-    }
-
-    // Grants + resources
-    try {
-      const res = await fetch("/api/personalized-match", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          cancerType: profile?.diagnosis || "",
-          stage: profile?.stage || "",
-          insurance: profile?.insurance || "",
-          zip: profile?.zip_code || "",
-          financialNeed: true,
-        }),
-      });
-      const data = await res.json();
-      const grants = [...(data.grants || []), ...(data.medication_assistance || [])].filter(
-        (g) => !seen.has(g.url)
-      );
-      const resources = [...(data.nonprofits || []), ...(data.support_groups || [])].filter(
-        (r) => !seen.has(r.url)
-      );
-      setNewGrants(grants);
-      setNewResources(resources);
-    } catch (err) {
-      console.error(err);
-    }
-
-    // Follow-up nudges from applications sitting in early stages
     const stale = [];
     (trialApps.data || []).forEach((a) => {
       if (a.status === "Contacted coordinator" || a.status === "Waiting for screening") {
@@ -130,35 +89,22 @@ export default function AlertsPage() {
       }
     });
     setFollowUps(stale);
-
     setLoading(false);
-  }
-
-  async function markSeen(itemKey, category) {
-    const sessionId = await getOrCreateSessionId();
-    await supabase.from("seen_alerts").insert({ session_id: sessionId, item_key: itemKey, category });
-
-    setSeenKeys((prev) => new Set(prev).add(itemKey));
-    setNewTrials((prev) => prev.filter((t) => t.url !== itemKey));
-    setNewGrants((prev) => prev.filter((g) => g.url !== itemKey));
-    setNewResources((prev) => prev.filter((r) => r.url !== itemKey));
   }
 
   async function dismissFollowUp(key) {
     setFollowUps((prev) => prev.filter((f) => f.key !== key));
   }
 
-  const totalCount = newTrials.length + newGrants.length + newResources.length + followUps.length;
-
   return (
     <div style={styles.page}>
       <h1 style={styles.heading}>Alerts & Notifications</h1>
       <p style={styles.subheading}>
         {loading
-          ? "Checking for new trials, grants, and resources…"
-          : totalCount === 0
+          ? "Checking your applications…"
+          : followUps.length === 0
           ? "You're all caught up."
-          : `${totalCount} new item${totalCount !== 1 ? "s" : ""} since your last visit.`}
+          : `${followUps.length} follow-up${followUps.length !== 1 ? "s" : ""} worth a look.`}
       </p>
 
       <div style={styles.prefsCard}>
@@ -179,15 +125,16 @@ export default function AlertsPage() {
           Text notifications
         </label>
 
+        {prefsError && <p style={styles.prefsErrorText}>{prefsError}</p>}
+
         {hasPhone && (
           <div style={styles.smsConsentBlock}>
             <p style={styles.smsConsentText}>
               By checking this box, you agree to receive text messages from Hope Atlas at the
-              phone number on your profile, including alerts about new clinical trial,
-              financial assistance, and support resource matches for your situation. Message
-              frequency varies based on your matches, up to about 1 message per day. Message
-              and data rates may apply. Reply STOP at any time to unsubscribe, or HELP for
-              help. View our{" "}
+              phone number on your profile, including alerts from your Care Circle and updates
+              on your applications. Message frequency varies, up to about 1 message per day.
+              Message and data rates may apply. Reply STOP at any time to unsubscribe, or HELP
+              for help. View our{" "}
               <a href="/terms" style={styles.prefsLink}>Terms of Service</a> and{" "}
               <a href="/privacy-policy" style={styles.prefsLink}>Privacy Policy</a>.
             </p>
@@ -200,13 +147,6 @@ export default function AlertsPage() {
           </p>
         )}
       </div>
-
-      {loading && (
-        <div style={styles.loadingRow}>
-          <Loader2 size={16} className="spin" style={{ marginRight: "8px" }} />
-          Checking…
-        </div>
-      )}
 
       {!loading && followUps.length > 0 && (
         <div style={styles.section}>
@@ -224,7 +164,7 @@ export default function AlertsPage() {
                   </div>
                 </div>
                 <button style={styles.dismissButton} onClick={() => dismissFollowUp(f.key)}>
-                  <X size={14} />
+                  ✕
                 </button>
               </div>
             ))}
@@ -232,84 +172,10 @@ export default function AlertsPage() {
         </div>
       )}
 
-      {!loading && newTrials.length > 0 && (
-        <div style={styles.section}>
-          <div style={styles.sectionHeader}>
-            <FlaskConical size={16} style={{ marginRight: "8px" }} />
-            <span style={styles.sectionLabel}>New trials</span>
-          </div>
-          <div style={styles.list}>
-            {newTrials.map((t, i) => (
-              <div key={i} style={styles.alertCard}>
-                <div style={{ flex: 1 }}>
-                  <a href={t.url} target="_blank" rel="noopener noreferrer" style={styles.alertLink}>
-                    {t.name}
-                  </a>
-                  {t.reasons && t.reasons.length > 0 && (
-                    <div style={styles.alertSubtitle}>{t.reasons.join(", ")}</div>
-                  )}
-                </div>
-                <button style={styles.dismissButton} onClick={() => markSeen(t.url, "trial")}>
-                  <X size={14} />
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {!loading && newGrants.length > 0 && (
-        <div style={styles.section}>
-          <div style={styles.sectionHeader}>
-            <HandCoins size={16} style={{ marginRight: "8px" }} />
-            <span style={styles.sectionLabel}>New grants & financial assistance</span>
-          </div>
-          <div style={styles.list}>
-            {newGrants.map((g, i) => (
-              <div key={i} style={styles.alertCard}>
-                <div style={{ flex: 1 }}>
-                  <a href={g.url} target="_blank" rel="noopener noreferrer" style={styles.alertLink}>
-                    {g.name}
-                  </a>
-                  {g.desc && <div style={styles.alertSubtitle}>{g.desc}</div>}
-                </div>
-                <button style={styles.dismissButton} onClick={() => markSeen(g.url, "grant")}>
-                  <X size={14} />
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {!loading && newResources.length > 0 && (
-        <div style={styles.section}>
-          <div style={styles.sectionHeader}>
-            <MapPin size={16} style={{ marginRight: "8px" }} />
-            <span style={styles.sectionLabel}>New resources in your area</span>
-          </div>
-          <div style={styles.list}>
-            {newResources.map((r, i) => (
-              <div key={i} style={styles.alertCard}>
-                <div style={{ flex: 1 }}>
-                  <a href={r.url} target="_blank" rel="noopener noreferrer" style={styles.alertLink}>
-                    {r.name}
-                  </a>
-                  {r.desc && <div style={styles.alertSubtitle}>{r.desc}</div>}
-                </div>
-                <button style={styles.dismissButton} onClick={() => markSeen(r.url, "resource")}>
-                  <X size={14} />
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {!loading && totalCount === 0 && (
+      {!loading && followUps.length === 0 && (
         <p style={styles.empty}>
-          Nothing new right now. Check back later, or make sure your profile, diagnosis,
-          and location are filled in for better matching.
+         Looking for trial, grant, or resource matches?
+          Check out <a href="/resources" style={styles.prefsLink}>Resources</a>.
         </p>
       )}
     </div>
@@ -320,7 +186,6 @@ const styles = {
   page: { padding: "16px", paddingBottom: "80px", maxWidth: "600px", margin: "0 auto" },
   heading: { fontSize: "20px", fontWeight: 700, marginBottom: "4px" },
   subheading: { fontSize: "13px", color: "#6E726A", marginBottom: "20px" },
-  loadingRow: { display: "flex", alignItems: "center", fontSize: "13.5px", color: "#6E726A", marginBottom: "16px" },
   section: { marginBottom: "24px" },
   sectionHeader: { display: "flex", alignItems: "center", marginBottom: "8px" },
   sectionLabel: {
@@ -341,7 +206,6 @@ const styles = {
     background: "#FCFBF8",
   },
   alertTitle: { fontSize: "13.5px", fontWeight: 600 },
-  alertLink: { fontSize: "13.5px", fontWeight: 600, color: "#3F628F", textDecoration: "none" },
   alertSubtitle: { fontSize: "12px", color: "#6E726A", marginTop: "3px" },
   dismissButton: {
     background: "#fff",
@@ -351,7 +215,7 @@ const styles = {
     cursor: "pointer",
     flexShrink: 0,
   },
-  empty: { color: "#999", fontSize: "14px", textAlign: "center", marginTop: "20px" },
+  empty: { color: "#999", fontSize: "14px", textAlign: "center", marginTop: "20px", lineHeight: 1.6 },
   prefsCard: {
     border: "1px solid #E1DDD2",
     borderRadius: "10px",
@@ -362,6 +226,7 @@ const styles = {
   prefsTitle: { fontSize: "13px", fontWeight: 700, marginBottom: "10px" },
   prefsRow: { display: "flex", alignItems: "center", gap: "8px", fontSize: "13.5px", marginBottom: "8px", cursor: "pointer" },
   prefsHint: { fontSize: "12px", color: "#6E726A", marginTop: "4px" },
+  prefsErrorText: { fontSize: "12px", color: "#A32D2D", marginTop: "4px", marginBottom: "6px" },
   smsConsentBlock: {
     marginTop: "6px",
     marginBottom: "4px",

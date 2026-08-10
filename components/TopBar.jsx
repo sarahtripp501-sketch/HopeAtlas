@@ -1,8 +1,18 @@
 "use client";
 import Image from "next/image";
+import { usePathname } from "next/navigation";
 import { User } from "lucide-react";
 
 export default function TopBar() {
+  const pathname = usePathname();
+
+  // Caregivers opening a share link shouldn't see the rest of the app's
+  // navigation at all — they're a guest checking in on one person, not
+  // someone who should stumble into Resources or Clinical Trials.
+  if (pathname && pathname.startsWith("/family/")) {
+    return null;
+  }
+
   return (
     <div style={styles.bar}>
       <div style={styles.left}>

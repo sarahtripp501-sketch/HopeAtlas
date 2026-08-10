@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "../../../lib/supabaseAdmin";
+import { notifyPatient } from "../../../lib/notifyPatient";
 
 export async function POST(request) {
   const { token, taskId } = await request.json();
@@ -27,15 +28,26 @@ export async function POST(request) {
   }
 
   // Only allow claiming a task that actually belongs to this member's patient
-  const { error } = await supabaseAdmin
+  const { data: updatedTask, error } = await supabaseAdmin
     .from("care_tasks")
     .update({ status: "claimed", claimed_by: member.name })
     .eq("id", taskId)
-    .eq("session_id", member.session_id);
+    .eq("session_id", member.session_id)
+    .select("title")
+    .single();
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+
+  // Let the patient know right away, rather than making them check the app —
+  // this only fires when responding to something they specifically asked
+  // for, not as a standing offer.
+  notifyPatient({
+    sessionId: member.session_id,
+    subject: "Someone from your Care Circle can help",
+    message: `${member.name} can help with: ${updatedTask.title}`,
+  }).catch((err) => console.error("notifyPatient error:", err));
 
   return NextResponse.json({ success: true });
 }

@@ -152,6 +152,8 @@ export default function CareCirclePage() {
 
   const [showAskForm, setShowAskForm] = useState(false);
   const [askText, setAskText] = useState("");
+  const [askDate, setAskDate] = useState("");
+  const [askTime, setAskTime] = useState("");
 
   const [updateText, setUpdateText] = useState("");
   const [updateCategory, setUpdateCategory] = useState("");
@@ -343,17 +345,32 @@ export default function CareCirclePage() {
   }
 
   // --- Tasks ---
-  async function createTask(title) {
+  async function createTask(title, date, time) {
+    if (!title || !title.trim()) return;
     const sessionId = await getOrCreateSessionId();
+    // Date/time are optional — if given, folded into the title itself, so
+    // every existing place a task's title already renders (this page's own
+    // list, and the family view's "Ways to help" section) shows it
+    // automatically with no other changes needed.
+    let finalTitle = title.trim();
+    if (date) {
+      const dateLabel = new Date(date + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
+      finalTitle += time ? ` (${dateLabel} at ${time})` : ` (${dateLabel})`;
+    } else if (time) {
+      finalTitle += ` (at ${time})`;
+    }
+
     const { error } = await supabase.from("care_tasks").insert({
       session_id: sessionId,
-      title,
-      category: title,
+      title: finalTitle,
+      category: title.trim(),
       status: "open",
     });
     if (error) return console.error(error);
     setShowAskForm(false);
     setAskText("");
+    setAskDate("");
+    setAskTime("");
     await loadAll();
   }
 
@@ -460,7 +477,7 @@ async function handleDeleteWallMessage(id) {
         <h1 style={styles.heading}>❤️ Your Care Circle</h1>
         <p style={styles.subheading}>Coordinate care with the people you trust.</p>
         <p style={styles.subheadingDetail}>
-          Add the people who care about you so they can stay in the loop with your updates —
+          Add the people who care about you so they can stay in the loop with your updates
           and you're never carrying it all alone.
         </p>
       </div>
@@ -561,11 +578,24 @@ async function handleDeleteWallMessage(id) {
           <div style={{ ...styles.sectionLabel, marginTop: "26px" }}>Ask for help</div>
           <div style={styles.askGrid}>
             {ASK_TEMPLATES.map((t) => (
-              <button key={t} style={styles.askChip} onClick={() => createTask(t)}>
+              <button
+                key={t}
+                style={styles.askChip}
+                onClick={() => {
+                  setAskText(t);
+                  setShowAskForm(true);
+                }}
+              >
                 {t}
               </button>
             ))}
-            <button style={styles.askChipCustom} onClick={() => setShowAskForm(true)}>
+            <button
+              style={styles.askChipCustom}
+              onClick={() => {
+                setAskText("");
+                setShowAskForm(true);
+              }}
+            >
               + Custom request
             </button>
           </div>
@@ -671,8 +701,16 @@ async function handleDeleteWallMessage(id) {
         <div style={styles.formOverlay}>
           <div style={styles.formCard}>
             <div style={styles.formHeader}>
-              <span style={styles.formTitle}>Custom request</span>
-              <button style={styles.closeButton} onClick={() => setShowAskForm(false)}>
+              <span style={styles.formTitle}>Ask for help</span>
+              <button
+                style={styles.closeButton}
+                onClick={() => {
+                  setShowAskForm(false);
+                  setAskText("");
+                  setAskDate("");
+                  setAskTime("");
+                }}
+              >
                 <X size={20} />
               </button>
             </div>
@@ -682,7 +720,22 @@ async function handleDeleteWallMessage(id) {
               value={askText}
               onChange={(e) => setAskText(e.target.value)}
             />
-            <button style={styles.saveButton} onClick={() => createTask(askText)}>
+            <label style={styles.askOptionalLabel}>Date & time (optional)</label>
+            <div style={{ display: "flex", gap: "8px" }}>
+              <input
+                style={{ ...styles.input, flex: 1 }}
+                type="date"
+                value={askDate}
+                onChange={(e) => setAskDate(e.target.value)}
+              />
+              <input
+                style={{ ...styles.input, flex: 1 }}
+                type="time"
+                value={askTime}
+                onChange={(e) => setAskTime(e.target.value)}
+              />
+            </div>
+            <button style={styles.saveButton} onClick={() => createTask(askText, askDate, askTime)}>
               Send request
             </button>
           </div>
@@ -1064,6 +1117,14 @@ const styles = {
   todayRow: { display: "flex", alignItems: "center", fontSize: "13px", marginBottom: "8px", color: "#2A2622" },
   todayDot: { width: "6px", height: "6px", borderRadius: "50%", background: "#C9A227", marginRight: "8px", flexShrink: 0 },
   askGrid: { display: "flex", flexWrap: "wrap", gap: "8px" },
+  askOptionalLabel: {
+    fontSize: "12px",
+    fontWeight: 600,
+    color: "#9A9A90",
+    marginTop: "10px",
+    marginBottom: "6px",
+    display: "block",
+  },
   askChip: {
     background: "#FFFFFF",
     border: "1px solid #EAD0C4",
