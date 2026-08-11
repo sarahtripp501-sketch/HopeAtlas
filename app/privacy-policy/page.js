@@ -68,7 +68,8 @@ export default function PrivacyPolicyPage() {
           time by replying STOP to any message, or by disabling text notifications from Alerts
           & Notifications in the app. We do not sell or share your phone number with third
           parties for their own marketing purposes; it is used only to deliver the
-          notifications described here.
+          notifications described here. Text messaging originator opt-in data and consent are
+          not shared with any third parties or affiliates for marketing or promotional purposes.
         </p>
       </div>
 
