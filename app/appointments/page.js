@@ -5,6 +5,25 @@ import { useRouter } from "next/navigation";
 import { Plus, X, Pencil, Trash2, Calendar as CalendarIcon } from "lucide-react";
 import { supabase, getOrCreateSessionId } from "../../lib/supabase";
 
+// appt_time is stored as a raw 24-hour string (e.g. "18:14") from an HTML
+// time input — this converts it to normal 12-hour AM/PM format for display.
+function formatTime12hr(timeStr) {
+  if (!timeStr) return "";
+  const [hourStr, minuteStr] = timeStr.split(":");
+  const hour = parseInt(hourStr, 10);
+  const period = hour >= 12 ? "PM" : "AM";
+  const displayHour = hour % 12 === 0 ? 12 : hour % 12;
+  return `${displayHour}:${minuteStr} ${period}`;
+}
+
+// appt_date is stored as "2026-08-13" — this makes it read naturally instead
+// of showing the raw ISO date.
+function formatDateReadable(dateStr) {
+  if (!dateStr) return "";
+  const d = new Date(dateStr + "T00:00:00");
+  return d.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+}
+
 export default function AppointmentsPage() {
   const router = useRouter();
   const [showForm, setShowForm] = useState(false);
@@ -201,7 +220,7 @@ function AppointmentItem({ appt, onEdit, onDelete }) {
         <div>
           <div style={styles.itemTitle}>{appt.title}</div>
           <div style={styles.itemMeta}>
-            {appt.appt_date} at {appt.appt_time}
+            {formatDateReadable(appt.appt_date)} at {formatTime12hr(appt.appt_time)}
           </div>
         </div>
         <div style={{ display: "flex", gap: "6px" }}>
@@ -268,9 +287,9 @@ function buildIcs(title, start, end) {
   return [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
-    "PRODID:-//org-directory-app//appointments//EN",
+    "PRODID:-//Hope Atlas//appointments//EN",
     "BEGIN:VEVENT",
-    `UID:${Date.now()}@org-directory-app`,
+    `UID:${Date.now()}@hopeatlas.co`,
     `DTSTAMP:${toUtcStamp(new Date())}`,
     `DTSTART:${toUtcStamp(start)}`,
     `DTEND:${toUtcStamp(end)}`,
