@@ -11,6 +11,25 @@ const QUICK_REPLIES = [
   "💙 Here if you need anything.",
 ];
 
+// appt_time is stored as a raw 24-hour string (e.g. "18:14") from an HTML
+// time input — this converts it to normal 12-hour AM/PM format for display.
+function formatTime12hr(timeStr) {
+  if (!timeStr) return "";
+  const [hourStr, minuteStr] = timeStr.split(":");
+  const hour = parseInt(hourStr, 10);
+  const period = hour >= 12 ? "PM" : "AM";
+  const displayHour = hour % 12 === 0 ? 12 : hour % 12;
+  return `${displayHour}:${minuteStr} ${period}`;
+}
+
+// appt_date is stored as "2026-08-13" — this makes it read naturally instead
+// of showing the raw ISO date.
+function formatDateReadable(dateStr) {
+  if (!dateStr) return "";
+  const d = new Date(dateStr + "T00:00:00");
+  return d.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+}
+
 export default function FamilyViewPage() {
   const { token } = useParams();
   const [member, setMember] = useState(null);
@@ -333,7 +352,7 @@ export default function FamilyViewPage() {
                   <div key={a.id} style={styles.card}>
                     <div style={styles.cardCategory}>{a.title}</div>
                     <div style={styles.cardMessage}>
-                      {a.appt_date} at {a.appt_time}
+                      {formatDateReadable(a.appt_date)} at {formatTime12hr(a.appt_time)}
                     </div>
                   </div>
                 ))}
