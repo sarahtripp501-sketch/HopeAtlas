@@ -11,6 +11,26 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
+// appt_time is stored as a raw 24-hour string (e.g. "18:14") straight from
+// an HTML time input — this converts it to a normal 12-hour AM/PM format
+// for the email, instead of showing military time.
+function formatTime12hr(timeStr) {
+  if (!timeStr) return '';
+  const [hourStr, minuteStr] = timeStr.split(':');
+  const hour = parseInt(hourStr, 10);
+  const period = hour >= 12 ? 'PM' : 'AM';
+  const displayHour = hour % 12 === 0 ? 12 : hour % 12;
+  return `${displayHour}:${minuteStr} ${period}`;
+}
+
+// appt_date is stored as "2026-08-13" — this makes it read naturally in the
+// email instead of showing the raw ISO date.
+function formatDateReadable(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr + 'T00:00:00');
+  return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+}
+
 export async function GET(request) {
   // Protect this route so only Vercel's Cron (or you, with the secret) can trigger it
   const authHeader = request.headers.get('authorization');
@@ -67,7 +87,7 @@ export async function GET(request) {
             <p>This is a reminder that you have an appointment tomorrow:</p>
             <p style="padding: 12px; background: #f5f5f0; border-radius: 8px;">
               <strong>${appt.title}</strong><br/>
-              ${appt.appt_date} at ${appt.appt_time}
+              ${formatDateReadable(appt.appt_date)} at ${formatTime12hr(appt.appt_time)}
             </p>
           `,
         });
