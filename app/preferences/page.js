@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Palette, Globe, Accessibility, Bell } from "lucide-react";
-import { supabase, getOrCreateSessionId } from "../../lib/supabase";
+import { supabase, getOrCreateSessionId, getProfile } from "../../lib/supabase";
 import { sendTestEmail } from "../actions/sendTestEmail";
 
 const THEMES = ["Light", "Dark", "System"];
@@ -22,7 +22,9 @@ export default function PreferencesPage() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [sendingTest, setSendingTest] = useState(false);
-const [testResult, setTestResult] = useState(null);
+  const [testResult, setTestResult] = useState(null);
+  const [testResultMessage, setTestResultMessage] = useState("");
+  const [profileEmail, setProfileEmail] = useState("");
 
   const [theme, setTheme] = useState("Light");
   const [language, setLanguage] = useState("English");
@@ -38,11 +40,13 @@ const [testResult, setTestResult] = useState(null);
 
   async function loadPreferences() {
     const sessionId = await getOrCreateSessionId();
-    const { data } = await supabase
-      .from("preferences")
-      .select("*")
-      .eq("session_id", sessionId)
-      .maybeSingle();
+
+    const [{ data }, profile] = await Promise.all([
+      supabase.from("preferences").select("*").eq("session_id", sessionId).maybeSingle(),
+      getProfile(sessionId).catch(() => null),
+    ]);
+
+    setProfileEmail(profile?.email || "");
 
     if (data) {
       setTheme(data.theme || "Light");
@@ -83,12 +87,19 @@ const [testResult, setTestResult] = useState(null);
   }
 
   async function handleSendTestEmail() {
-  setSendingTest(true);
-  setTestResult(null);
-  const result = await sendTestEmail();
-  setTestResult(result.success ? "success" : "error");
-  setSendingTest(false);
-}
+    if (!profileEmail) {
+      setTestResult("error");
+      setTestResultMessage("Add an email to your profile first.");
+      return;
+    }
+    setSendingTest(true);
+    setTestResult(null);
+    const result = await sendTestEmail(profileEmail);
+    setTestResult(result.success ? "success" : "error");
+    setTestResultMessage(result.success ? "" : result.error || "Couldn't send test email.");
+    setSendingTest(false);
+  }
+
   async function handleSave() {
     setSaving(true);
     const sessionId = await getOrCreateSessionId();
@@ -189,15 +200,16 @@ const [testResult, setTestResult] = useState(null);
             <input type="checkbox" checked={notifyNewMatches} onChange={(e) => setNotifyNewMatches(e.target.checked)} />
             New trial and grant matches
           </label>
-<button
-  style={{ ...styles.saveButton, marginTop: "8px" }}
-  onClick={handleSendTestEmail}
-  disabled={sendingTest}
->
-  {sendingTest ? "Sending…" : "Send test email"}
-</button>
-{testResult === "success" && <p style={styles.savedNote}>Test email sent to hello@hopeatlas.co!</p>}
-{testResult === "error" && <p style={{ color: "#c00", fontSize: "12.5px", textAlign: "center", marginTop: "10px" }}>Couldn't send test email.</p>}        </div>
+          <button
+            style={{ ...styles.saveButton, marginTop: "8px" }}
+            onClick={handleSendTestEmail}
+            disabled={sendingTest}
+          >
+            {sendingTest ? "Sending…" : profileEmail ? `Send test email to ${profileEmail}` : "Send test email"}
+          </button>
+          {testResult === "success" && <p style={styles.savedNote}>Test email sent to {profileEmail}!</p>}
+          {testResult === "error" && <p style={{ color: "#c00", fontSize: "12.5px", textAlign: "center", marginTop: "10px" }}>{testResultMessage}</p>}
+        </div>
       </div>
 
       <button style={styles.saveButton} onClick={handleSave} disabled={saving}>
