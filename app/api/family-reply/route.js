@@ -33,13 +33,19 @@ export async function POST(request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  // Let the patient know right away — not everyone checks the support wall
-  // regularly, and a message of support shouldn't sit unseen.
-  notifyPatient({
-    sessionId: member.session_id,
-    subject: "A message from your Care Circle",
-    message: `${replyName || member.name}: ${replyText}`,
-  }).catch((err) => console.error("notifyPatient error:", err));
+  // This must be awaited, not fire-and-forget — Vercel's serverless
+  // functions can freeze or tear down the moment a response is returned,
+  // which would silently kill this notification mid-flight if we didn't
+  // wait for it first.
+  try {
+    await notifyPatient({
+      sessionId: member.session_id,
+      subject: "A message from your Care Circle",
+      message: `${replyName || member.name}: ${replyText}`,
+    });
+  } catch (err) {
+    console.error("notifyPatient error:", err);
+  }
 
   return NextResponse.json({ success: true });
 }

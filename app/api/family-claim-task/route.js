@@ -40,14 +40,19 @@ export async function POST(request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  // Let the patient know right away, rather than making them check the app —
-  // this only fires when responding to something they specifically asked
-  // for, not as a standing offer.
-  notifyPatient({
-    sessionId: member.session_id,
-    subject: "Someone from your Care Circle can help",
-    message: `${member.name} can help with: ${updatedTask.title}`,
-  }).catch((err) => console.error("notifyPatient error:", err));
+  // This must be awaited, not fire-and-forget — Vercel's serverless
+  // functions can freeze or tear down the moment a response is returned,
+  // which would silently kill this notification mid-flight if we didn't
+  // wait for it first.
+  try {
+    await notifyPatient({
+      sessionId: member.session_id,
+      subject: "Someone from your Care Circle can help",
+      message: `${member.name} can help with: ${updatedTask.title}`,
+    });
+  } catch (err) {
+    console.error("notifyPatient error:", err);
+  }
 
   return NextResponse.json({ success: true });
 }
