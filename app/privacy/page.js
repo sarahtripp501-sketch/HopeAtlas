@@ -29,6 +29,15 @@ const ALL_TABLES = [
   "seen_alerts",
   "preferences",
   "ai_conversations",
+  // Added — these were missing from export/delete entirely, meaning
+  // "Delete my account" didn't actually clear them despite the page saying
+  // "everything tied to your session" gets deleted.
+  "medications",
+  "symptom_logs",
+  "applications",
+  "connected_account_interest",
+  "match_cache",
+  "suggested_orgs",
 ];
 
 export default function PrivacyPage() {
@@ -58,6 +67,13 @@ export default function PrivacyPage() {
     a.download = "my-data-export.json";
     a.click();
     URL.revokeObjectURL(url);
+
+    // Track when this last happened, so a gentle periodic reminder can be
+    // sent if it's been a long time — since there's no login, losing this
+    // browser session means losing everything permanently otherwise.
+    await supabase
+      .from("preferences")
+      .upsert({ session_id: sessionId, last_export_at: new Date().toISOString() }, { onConflict: "session_id" });
 
     setExporting(false);
   }
@@ -103,7 +119,9 @@ export default function PrivacyPage() {
         <div style={styles.sectionLabel}>Export my data</div>
         <div style={styles.card}>
           <p style={styles.cardText}>
-            Download everything tied to your session as a single file.
+            Download everything tied to your session as a single file. Since there's no login,
+            this is the only real backup if you ever lose access to this browser or device — worth
+            doing every so often.
           </p>
           <button style={styles.exportButton} onClick={handleExport} disabled={exporting}>
             <Download size={15} style={{ marginRight: "8px" }} />
