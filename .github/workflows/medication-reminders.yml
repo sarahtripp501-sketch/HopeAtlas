@@ -1,0 +1,15 @@
+name: Medication Reminders
+
+on:
+  schedule:
+    - cron: '0 * * * *'
+  workflow_dispatch: {}
+
+jobs:
+  call-reminder-endpoint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call medication reminders endpoint
+        run: |
+          curl -f -X GET "https://www.hopeatlas.co/api/medication-reminders" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"

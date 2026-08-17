@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, X, Pencil, Trash2 } from "lucide-react";
+import { Plus, X, Pencil, Trash2, TrendingUp } from "lucide-react";
 import { supabase, getOrCreateSessionId } from "../../lib/supabase";
 
 const SYMPTOM_OPTIONS = [
@@ -25,6 +25,100 @@ const SEVERITY_LEVELS = [
   { level: 5, emoji: "😣", label: "Severe" },
 ];
 
+// Self-contained SVG line chart — no charting library needed for something
+// this simple. Shows one symptom's severity over time, with a gentle
+// "log a bit more" message rather than a broken/empty chart when there's
+// not enough data yet.
+function TrendChart({ data }) {
+  const [activeIndex, setActiveIndex] = useState(null);
+
+  if (data.length < 2) {
+    return (
+      <p style={styles.trendEmpty}>
+        Log a few more check-ins with this symptom to see a trend over time.
+      </p>
+    );
+  }
+
+  const width = 320;
+  const height = 150;
+  const paddingLeft = 26;
+  const paddingRight = 10;
+  const paddingTop = 10;
+  const paddingBottom = 26;
+  const plotWidth = width - paddingLeft - paddingRight;
+  const plotHeight = height - paddingTop - paddingBottom;
+
+  const xStep = data.length > 1 ? plotWidth / (data.length - 1) : 0;
+  const yForSeverity = (sev) => paddingTop + plotHeight - ((sev - 1) / 4) * plotHeight;
+
+  const points = data.map((d, i) => ({
+    x: paddingLeft + i * xStep,
+    y: yForSeverity(d.severity),
+    ...d,
+  }));
+
+  const pathD = points.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
+  const labelEvery = data.length > 8 ? Math.ceil(data.length / 6) : 1;
+
+  return (
+    <div>
+      <svg viewBox={`0 0 ${width} ${height}`} style={{ width: "100%", height: "auto" }}>
+        {SEVERITY_LEVELS.map((sv) => {
+          const y = yForSeverity(sv.level);
+          return (
+            <g key={sv.level}>
+              <line x1={paddingLeft} y1={y} x2={width - paddingRight} y2={y} stroke="#E5DFD2" strokeWidth="1" />
+              <text x={paddingLeft - 6} y={y + 4} fontSize="9" textAnchor="end" fill="#9a9488">
+                {sv.emoji}
+              </text>
+            </g>
+          );
+        })}
+
+        <path d={pathD} fill="none" stroke="#B86F4E" strokeWidth="2" />
+
+        {points.map((p, i) => (
+          <circle
+            key={i}
+            cx={p.x}
+            cy={p.y}
+            r={activeIndex === i ? 5 : 3.5}
+            fill="#B86F4E"
+            stroke="#FAF6F0"
+            strokeWidth="1.5"
+            style={{ cursor: "pointer" }}
+            onClick={() => setActiveIndex(activeIndex === i ? null : i)}
+          />
+        ))}
+
+        {points.map((p, i) => {
+          if (i % labelEvery !== 0 && i !== points.length - 1) return null;
+          const d = new Date(p.date + "T00:00:00");
+          const label = d.toLocaleDateString("en-US", { month: "numeric", day: "numeric" });
+          return (
+            <text key={i} x={p.x} y={height - 6} fontSize="9" textAnchor="middle" fill="#9a9488">
+              {label}
+            </text>
+          );
+        })}
+      </svg>
+
+      {activeIndex !== null && (
+        <p style={styles.trendActiveCaption}>
+          {new Date(points[activeIndex].date + "T00:00:00").toLocaleDateString("en-US", {
+            weekday: "long",
+            month: "long",
+            day: "numeric",
+          })}
+          : {SEVERITY_LEVELS.find((s) => s.level === points[activeIndex].severity)?.emoji}{" "}
+          {SEVERITY_LEVELS.find((s) => s.level === points[activeIndex].severity)?.label}
+        </p>
+      )}
+    </div>
+  );
+}
+
 export default function SymptomsPage() {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -36,6 +130,9 @@ export default function SymptomsPage() {
   const [showCustomInput, setShowCustomInput] = useState(false);
   const [note, setNote] = useState("");
   const [logDate, setLogDate] = useState(() => new Date().toISOString().slice(0, 10));
+
+  const [showTrends, setShowTrends] = useState(false);
+  const [selectedTrendSymptom, setSelectedTrendSymptom] = useState("");
 
   useEffect(() => {
     loadLogs();
@@ -151,6 +248,20 @@ export default function SymptomsPage() {
   }
 
   const customSymptoms = Object.keys(selectedSymptoms).filter((s) => !SYMPTOM_OPTIONS.includes(s));
+
+  // Every distinct symptom name ever logged, for the trend picker
+  const distinctSymptoms = Array.from(
+    new Set(logs.flatMap((log) => (log.entries || []).map((e) => e.symptom)))
+  );
+
+  // Chronological (oldest first) data for the selected symptom's trend line
+  const trendData = [...logs]
+    .filter((log) => (log.entries || []).some((e) => e.symptom === selectedTrendSymptom))
+    .sort((a, b) => new Date(a.log_date) - new Date(b.log_date))
+    .map((log) => ({
+      date: log.log_date,
+      severity: log.entries.find((e) => e.symptom === selectedTrendSymptom).severity,
+    }));
 
   return (
     <div style={styles.page}>
@@ -279,6 +390,40 @@ export default function SymptomsPage() {
           </div>
         )}
 
+        {!loading && distinctSymptoms.length > 0 && (
+          <>
+            <button
+              style={styles.trendToggle}
+              onClick={() => {
+                setShowTrends((s) => !s);
+                if (!selectedTrendSymptom) setSelectedTrendSymptom(distinctSymptoms[0]);
+              }}
+            >
+              <span style={{ display: "flex", alignItems: "center" }}>
+                <TrendingUp size={15} style={{ marginRight: "8px" }} />
+                {showTrends ? "Hide" : "Show"} trends over time
+              </span>
+            </button>
+
+            {showTrends && (
+              <div style={styles.trendCard}>
+                <select
+                  style={styles.trendSelect}
+                  value={selectedTrendSymptom}
+                  onChange={(e) => setSelectedTrendSymptom(e.target.value)}
+                >
+                  {distinctSymptoms.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </select>
+                <TrendChart data={trendData} />
+              </div>
+            )}
+          </>
+        )}
+
         {loading && <p style={styles.empty}>Loading...</p>}
         {!loading && logs.length === 0 && (
           <p style={styles.empty}>No check-ins yet. Tap + to log how you're feeling today.</p>
@@ -386,4 +531,39 @@ const styles = {
   cardChip: { fontSize: "12px", background: "#F5F2EA", borderRadius: "12px", padding: "4px 10px", color: "#2A2622" },
   cardEmpty: { fontSize: "12.5px", color: "#9a9488", margin: 0 },
   cardNote: { fontSize: "12.5px", color: "#5f6d63", marginTop: "8px", lineHeight: 1.4 },
+  trendToggle: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    width: "100%",
+    background: "#FFFFFF",
+    border: "1px solid #E5DFD2",
+    borderRadius: "10px",
+    padding: "12px 14px",
+    fontSize: "13.5px",
+    fontWeight: 600,
+    color: "#2B4339",
+    textAlign: "left",
+    cursor: "pointer",
+    fontFamily: "inherit",
+    marginBottom: "14px",
+  },
+  trendCard: {
+    background: "#FFFFFF",
+    border: "1px solid #E5DFD2",
+    borderRadius: "12px",
+    padding: "14px",
+    marginBottom: "18px",
+  },
+  trendSelect: {
+    width: "100%",
+    padding: "8px 10px",
+    borderRadius: "8px",
+    border: "1px solid #E5DFD2",
+    fontSize: "13.5px",
+    marginBottom: "10px",
+    fontFamily: "inherit",
+  },
+  trendEmpty: { fontSize: "12.5px", color: "#9a9488", textAlign: "center", padding: "20px 0", margin: 0 },
+  trendActiveCaption: { fontSize: "12.5px", color: "#5f6d63", textAlign: "center", marginTop: "6px" },
 };

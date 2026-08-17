@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, X, Pencil, Trash2, Pill } from "lucide-react";
+import { Plus, X, Pencil, Trash2, Pill, Clock } from "lucide-react";
 import { supabase, getOrCreateSessionId } from "../../lib/supabase";
 
 const STATUS_OPTIONS = ["Active", "Paused", "Discontinued"];
@@ -16,6 +16,7 @@ export default function MedicationsPage() {
   const [frequency, setFrequency] = useState("");
   const [status, setStatus] = useState(STATUS_OPTIONS[0]);
   const [notes, setNotes] = useState("");
+  const [reminderTimes, setReminderTimes] = useState([]);
 
   useEffect(() => {
     loadMedications();
@@ -40,6 +41,7 @@ export default function MedicationsPage() {
     setFrequency("");
     setStatus(STATUS_OPTIONS[0]);
     setNotes("");
+    setReminderTimes([]);
     setShowForm(true);
   }
 
@@ -50,7 +52,21 @@ export default function MedicationsPage() {
     setFrequency(m.frequency || "");
     setStatus(m.status || STATUS_OPTIONS[0]);
     setNotes(m.notes || "");
+    setReminderTimes(m.reminder_times || []);
     setShowForm(true);
+  }
+
+  function addReminderTime() {
+    if (reminderTimes.length >= 3) return;
+    setReminderTimes((prev) => [...prev, "08:00"]);
+  }
+
+  function updateReminderTime(index, value) {
+    setReminderTimes((prev) => prev.map((t, i) => (i === index ? value : t)));
+  }
+
+  function removeReminderTime(index) {
+    setReminderTimes((prev) => prev.filter((_, i) => i !== index));
   }
 
   async function handleSave() {
@@ -60,7 +76,7 @@ export default function MedicationsPage() {
     if (editingId) {
       const { error } = await supabase
         .from("medications")
-        .update({ name, dosage, frequency, status, notes })
+        .update({ name, dosage, frequency, status, notes, reminder_times: reminderTimes })
         .eq("id", editingId)
         .eq("session_id", sessionId);
       if (error) return console.error(error);
@@ -72,6 +88,7 @@ export default function MedicationsPage() {
         frequency,
         status,
         notes,
+        reminder_times: reminderTimes,
       });
       if (error) return console.error(error);
     }
@@ -102,7 +119,13 @@ export default function MedicationsPage() {
   return (
     <div style={styles.page}>
       <div style={styles.header}>
-        <h1 style={styles.heading}>Medication Tracker</h1>
+        <div>
+          <h1 style={styles.heading}>Medication Tracker</h1>
+          <p style={styles.subheading}>
+            Keep track of what you're taking, and optionally set reminder times so you get a
+            nudge when it's time for a dose.
+          </p>
+        </div>
         <button style={styles.addButton} onClick={openNewForm}>
           <Plus size={20} />
         </button>
@@ -152,6 +175,27 @@ export default function MedicationsPage() {
               onChange={(e) => setNotes(e.target.value)}
             />
 
+            <label style={styles.fieldLabel}>Reminder times (optional)</label>
+            {reminderTimes.map((t, i) => (
+              <div key={i} style={styles.reminderRow}>
+                <input
+                  style={{ ...styles.input, marginBottom: 0, flex: 1 }}
+                  type="time"
+                  value={t}
+                  onChange={(e) => updateReminderTime(i, e.target.value)}
+                />
+                <button style={styles.removeTimeButton} onClick={() => removeReminderTime(i)}>
+                  <X size={14} />
+                </button>
+              </div>
+            ))}
+            {reminderTimes.length < 3 && (
+              <button style={styles.addTimeButton} onClick={addReminderTime}>
+                <Clock size={13} style={{ marginRight: "5px" }} />
+                + Add a reminder time
+              </button>
+            )}
+
             <button style={styles.saveButton} onClick={handleSave}>
               Save
             </button>
@@ -189,7 +233,17 @@ export default function MedicationsPage() {
   );
 }
 
+function formatTime12hr(timeStr) {
+  if (!timeStr) return "";
+  const [hourStr, minuteStr] = timeStr.split(":");
+  const hour = parseInt(hourStr, 10);
+  const period = hour >= 12 ? "PM" : "AM";
+  const displayHour = hour % 12 === 0 ? 12 : hour % 12;
+  return `${displayHour}:${minuteStr} ${period}`;
+}
+
 function MedCard({ m, onEdit, onDelete }) {
+  const reminderTimes = m.reminder_times || [];
   return (
     <div style={styles.card}>
       <div style={styles.iconBox}>
@@ -200,6 +254,16 @@ function MedCard({ m, onEdit, onDelete }) {
         <div style={styles.cardSubtitle}>
           {[m.dosage, m.frequency].filter(Boolean).join(" · ")}
         </div>
+        {reminderTimes.length > 0 && (
+          <div style={styles.reminderChipRow}>
+            {reminderTimes.map((t, i) => (
+              <span key={i} style={styles.reminderChip}>
+                <Clock size={11} style={{ marginRight: "4px" }} />
+                {formatTime12hr(t)}
+              </span>
+            ))}
+          </div>
+        )}
         {m.notes && <div style={styles.cardNotes}>{m.notes}</div>}
       </div>
       <div style={styles.cardActions}>
@@ -219,16 +283,19 @@ const styles = {
   header: {
     display: "flex",
     justifyContent: "space-between",
-    alignItems: "center",
+    alignItems: "flex-start",
+    gap: "12px",
     marginBottom: "16px",
   },
   heading: { fontSize: "20px", fontWeight: 700 },
+  subheading: { fontSize: "13px", color: "#6E726A", marginTop: "4px", lineHeight: 1.5 },
   addButton: {
     background: "#FCFBF8",
     border: "1px solid #E1DDD2",
     borderRadius: "8px",
     padding: "6px 10px",
     cursor: "pointer",
+    flexShrink: 0,
   },
   formOverlay: {
     position: "fixed",
@@ -245,10 +312,13 @@ const styles = {
     padding: "20px",
     width: "90%",
     maxWidth: "360px",
+    maxHeight: "88vh",
+    overflowY: "auto",
   },
   formHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" },
   formTitle: { fontWeight: 700, fontSize: "16px" },
   closeButton: { background: "none", border: "none", cursor: "pointer" },
+  fieldLabel: { fontSize: "12.5px", fontWeight: 600, color: "#6E726A", display: "block", marginBottom: "8px", marginTop: "6px" },
   input: {
     width: "100%",
     padding: "10px",
@@ -256,6 +326,29 @@ const styles = {
     borderRadius: "8px",
     border: "1px solid #E1DDD2",
     fontSize: "14px",
+    fontFamily: "inherit",
+  },
+  reminderRow: { display: "flex", gap: "8px", alignItems: "center", marginBottom: "8px" },
+  removeTimeButton: {
+    background: "#fff",
+    border: "1px solid #E1DDD2",
+    borderRadius: "6px",
+    padding: "9px",
+    cursor: "pointer",
+    flexShrink: 0,
+  },
+  addTimeButton: {
+    display: "flex",
+    alignItems: "center",
+    background: "none",
+    border: "1px dashed #B9C7BC",
+    borderRadius: "8px",
+    padding: "8px 12px",
+    fontSize: "12.5px",
+    fontWeight: 600,
+    color: "#5f6d63",
+    cursor: "pointer",
+    marginBottom: "10px",
     fontFamily: "inherit",
   },
   saveButton: {
@@ -300,6 +393,17 @@ const styles = {
   },
   cardTitle: { fontSize: "14px", fontWeight: 600 },
   cardSubtitle: { fontSize: "12.5px", color: "#6E726A", marginTop: "2px" },
+  reminderChipRow: { display: "flex", flexWrap: "wrap", gap: "6px", marginTop: "6px" },
+  reminderChip: {
+    display: "flex",
+    alignItems: "center",
+    fontSize: "11px",
+    fontWeight: 600,
+    color: "#2C5F55",
+    background: "#E1F5EE",
+    padding: "3px 8px",
+    borderRadius: "10px",
+  },
   cardNotes: { fontSize: "12px", color: "#9A9A90", marginTop: "4px" },
   cardActions: { display: "flex", gap: "6px", flexShrink: 0 },
   iconButton: {
