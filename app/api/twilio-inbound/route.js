@@ -36,9 +36,6 @@ export async function POST(request) {
   }
 
   const from = params.get("From");
-  // Present only when Advanced Opt-Out is enabled on the Messaging Service —
-  // falls back to checking the message body directly if it's ever missing,
-  // so this doesn't silently do nothing if that setting isn't on yet.
   const optOutType = params.get("OptOutType");
   const body = (params.get("Body") || "").trim().toUpperCase();
 
@@ -51,14 +48,6 @@ export async function POST(request) {
   else if (STOP_KEYWORDS.includes(body)) action = "stop";
   else if (START_KEYWORDS.includes(body)) action = "start";
 
-  if (!action || !from) {
-    // Nothing to sync (likely a HELP reply, or an unrelated message) —
-    // still return valid empty TwiML so Twilio doesn't treat this as an error.
-    return new NextResponse("<Response></Response>", {
-      headers: { "Content-Type": "text/xml" },
-    });
-  }
-
   const normalizedFrom = normalizePhone(from);
 
   const { data: profiles } = await supabaseAdmin
@@ -67,6 +56,30 @@ export async function POST(request) {
     .not("phone", "is", null);
 
   const match = (profiles || []).find((p) => normalizePhone(p.phone) === normalizedFrom);
+
+  // Temporary diagnostic — remove once confirmed.
+  console.log("twilio-inbound debug:", {
+    from,
+    normalizedFrom,
+    optOutType,
+    body,
+    action,
+    allProfilePhones: (profiles || []).map((p) => ({
+      session_id: p.session_id,
+      phone: p.phone,
+      normalized: normalizePhone(p.phone),
+    })),
+    matchFound: !!match,
+    matchSessionId: match?.session_id,
+  });
+
+  if (!action || !from) {
+    // Nothing to sync (likely a HELP reply, or an unrelated message) —
+    // still return valid empty TwiML so Twilio doesn't treat this as an error.
+    return new NextResponse("<Response></Response>", {
+      headers: { "Content-Type": "text/xml" },
+    });
+  }
 
   if (match) {
     await supabaseAdmin
