@@ -18,8 +18,10 @@ export async function POST(request) {
 
   // Verify this request genuinely came from Twilio, not someone spoofing a
   // fake STOP reply to silently disable a stranger's notifications.
+  // This URL must exactly match what's configured in Twilio Console's
+  // Messaging Service webhook setting — confirmed to be the www version.
   const signature = request.headers.get("x-twilio-signature");
-  const url = `${process.env.NEXT_PUBLIC_SITE_URL}/api/twilio-inbound`;
+  const url = "https://www.hopeatlas.co/api/twilio-inbound";
   const paramsObject = Object.fromEntries(params.entries());
 
   const isValid = twilio.validateRequest(
