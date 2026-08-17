@@ -55,23 +55,7 @@ export async function POST(request) {
     .select("session_id, phone")
     .not("phone", "is", null);
 
-  const match = (profiles || []).find((p) => normalizePhone(p.phone) === normalizedFrom);
-
-  // Temporary diagnostic — remove once confirmed.
-  console.log("twilio-inbound debug:", {
-    from,
-    normalizedFrom,
-    optOutType,
-    body,
-    action,
-    allProfilePhones: (profiles || []).map((p) => ({
-      session_id: p.session_id,
-      phone: p.phone,
-      normalized: normalizePhone(p.phone),
-    })),
-    matchFound: !!match,
-    matchSessionId: match?.session_id,
-  });
+  const matches = (profiles || []).filter((p) => normalizePhone(p.phone) === normalizedFrom);
 
   if (!action || !from) {
     // Nothing to sync (likely a HELP reply, or an unrelated message) —
@@ -81,11 +65,15 @@ export async function POST(request) {
     });
   }
 
-  if (match) {
+  // Update every session tied to this phone number, not just the first
+  // match — the same number can legitimately appear on multiple sessions
+  // (shared households, someone using the app on more than one device),
+  // and a STOP reply should be honored everywhere that number appears.
+  for (const m of matches) {
     await supabaseAdmin
       .from("preferences")
       .upsert(
-        { session_id: match.session_id, notify_text: action === "start" },
+        { session_id: m.session_id, notify_text: action === "start" },
         { onConflict: "session_id" }
       );
   }
